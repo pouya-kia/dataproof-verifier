@@ -85,6 +85,8 @@ frames and all `OVER` windows remain unsupported. See [Wave C](docs/evaluation/s
 [Wave D](docs/evaluation/sql-coverage-wave-d.md), the [final capability and
 coverage matrix](docs/evaluation/sql-coverage-a3-candidate.md), and the
 [candidate release notes](docs/release-notes-0.1.0a3.md).
+The separate [untagged `0.1.0a4.dev0` development notes](docs/release-notes-0.1.0a4-dev.md)
+describe the new bounded aggregate pipeline and its remaining gates.
 This development source routes the bounded joined-query Python search through
 the [versioned relational plan](docs/architecture/relational-core.md); the
 classic one-table Z3, Doppelgänger, and Proof2Test contracts are unchanged.

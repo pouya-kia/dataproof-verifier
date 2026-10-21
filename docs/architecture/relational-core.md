@@ -72,12 +72,26 @@ are capped. Source constraints use existing per-table legal-world checks.
    guarded two-table pipeline only.** General CTE reuse remains deferred.
 3. Generic N-table legal-world representation and bound -> three-table
    declared join-tree admission/evaluation -> differential oracle. **Not yet
-   implemented.** A two-table plan does not imply three-table support.
+   implemented.** `join_model.World` is a fixed two-tuple, its spec validator
+   requires exactly two tables, its SQL source resolver binds only table
+   indices 0/1, and `join_replay.py` decodes exactly two serialized sides.
+   Extending only the `Join` plan node would leave world generation and
+   replay unsound; a separate end-to-end three-table slice needs new finite
+   analytical bounds and original-SQL differential tests. Mixed outer-join
+   trees must retain declared order and null-extension semantics.
 4. Independently checked scalar Boolean plan/replay contract -> optional
    Doppelgänger finite adapter -> separately justified Proof2Test export.
    **Not yet implemented.** Existing Z3 workflows stay stable meanwhile.
 
-Subqueries and order-dependent windows require additional typed scope,
-cardinality and tie semantics. They are rejected until reference checks can
-cover them. One functioning vertical slice is preferable to an untested
-general plan or a silent migration of the classic Z3 path.
+Uncorrelated scalar subqueries require a new typed nested-result scope and
+DuckDB-matched empty/multi-row cardinality behavior. Ordered windows require
+an ordered stage, explicit NULL/tie/frame policy and treatment of partially
+ordered duplicate rows; neither can be represented by the current unordered
+grouped bag. No safe compiler/reference path for those features was delivered,
+so they are rejected, not claimed as completed. This is a concrete release
+boundary, not evidence that the features are impossible. The shared plan is
+currently in end-to-end **joined NoUndo only**; there is no safe automatic
+adapter for separately justified Doppelgänger invariants or Proof2Test
+expected outputs. Their existing Z3/target paths remain independent. One
+functioning vertical slice is preferable to an untested general plan or a
+silent migration of the classic Z3 path.
