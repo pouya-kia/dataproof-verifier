@@ -43,5 +43,7 @@ outside the declared finite bound.
 This suite exercises several feature families but **does not** supply a new
 Doppelgänger invariant or Proof2Test expected-output contract. Those
 workflows keep their existing separate tests and capability limits. The
-suite also does not address the unchanged original 50 public-origin tasks;
-their per-ID reassessment is [blocked on the original private ledger](dataproof-100-architecture-postchange.md).
+suite also does not itself address the unchanged original 50 public-origin
+tasks. Their restored private ledger received a [separate per-ID
+reassessment](dataproof-100-architecture-postchange.md); no original task
+became a demonstrated unchanged full-contract success.

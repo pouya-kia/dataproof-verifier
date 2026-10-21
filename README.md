@@ -124,6 +124,8 @@ For the current development source, read the [exact relational SQL and
 workflow matrix](docs/relational-sql-contract.md), the [12 authored
 full-contract controls](docs/evaluation/full-contract-sql-suite.md), and the
 [architecture-era original-task accounting](docs/evaluation/dataproof-100-architecture-postchange.md).
-The authored controls are not independent-user outcomes. The immutable
-private per-ID source ledger was unavailable for a fresh unchanged-100
-reassessment; no original-task success has been claimed from new syntax.
+The authored controls are not independent-user outcomes. The restored
+private 100-ID ledger was reassessed on the exact current Wheel: 34 direct
+authored fixtures retained their outcomes, while no public-origin task had
+an unchanged executable full contract. Original-task success remains 0/50;
+new syntax is not a substitute for missing developer requirements.
