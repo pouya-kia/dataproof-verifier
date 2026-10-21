@@ -1,0 +1,16 @@
+{
+  "scenario": "practitioner-inspired-synthetic-exchange-volume-retention",
+  "source_data_type": "rolling 24-hour reported-volume snapshots",
+  "unit": "illustrative integer thousands of USDT; not real exchange readings",
+  "independent_external_developer_task": false,
+  "actual_production_incident": false,
+  "world_A": [["2026-10-01", 1, 10], ["2026-10-01", 2, 20]],
+  "world_B": [["2026-10-01", 1, 15], ["2026-10-01", 2, 15]],
+  "expected_retained_view_both": [["2026-10-01", 2, 30]],
+  "expected_metric_A": 20,
+  "expected_metric_B": 15,
+  "expected_repaired_views": {
+    "A": [["2026-10-01", 2, 30, 20]],
+    "B": [["2026-10-01", 2, 30, 15]]
+  }
+}

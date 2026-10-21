@@ -1,0 +1,20 @@
+{
+  "table": {
+    "name": "exchange_volume_polls",
+    "columns": [
+      {"name": "day", "type": "DATE", "nullable": false, "domain": ["2026-10-01"]},
+      {"name": "poll_id", "type": "INTEGER", "nullable": false, "domain": [1, 2]},
+      {"name": "volume_24h_kusdt", "type": "INTEGER", "nullable": false, "domain": [10, 15, 20]}
+    ],
+    "primary_key": ["poll_id"],
+    "unique": []
+  },
+  "views": [
+    "SELECT day, COUNT(*) AS sample_count, SUM(volume_24h_kusdt) AS sampled_volume_total FROM exchange_volume_polls GROUP BY day"
+  ],
+  "metric": "SELECT MAX(volume_24h_kusdt) AS peak_reported_24h_volume FROM exchange_volume_polls",
+  "max_rows": 2,
+  "timeout_ms": 10000,
+  "seed": 19,
+  "output_dir": "artifacts/exchange_volume_loss"
+}
