@@ -43,10 +43,14 @@ performs 222 legal-world differential evaluations, separate reference
 searches and serialized replay for nine positive controls, with three
 complete finite negatives. These tasks reuse developer-authored examples;
 they are neither external adoption nor a blind benchmark. The original
-private DataProof-100 per-ID ledger was unavailable at its recorded location
-during this change. The [continuity note](evaluation/dataproof-100-architecture-postchange.md)
-preserves the historical 0/50 finding without pretending a fresh 100-ID
-reassessment occurred. Paper 1, Paper 2 and Phase 6C primary practical gates
+private DataProof-100 ledger was restored after the first candidate build.
+An [exact-Wheel reassessment](evaluation/dataproof-100-architecture-postchange.md)
+accounted for all 100 unchanged IDs: 34 direct authored controls retained
+their outcomes, 28/28 complete finite references agreed and 20/20 positive
+witnesses replayed. The 50 public-origin records still provide **zero complete
+as-stated executable tasks**, so original-task success remains 0/50. Other
+authored control types were not newly rerun. Paper 1, Paper 2 and Phase 6C
+primary practical gates
 remain negative. No scientific novelty, general speedup, production
 readiness or broad SQL utility is established.
 

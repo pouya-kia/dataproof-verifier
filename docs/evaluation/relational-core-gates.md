@@ -23,9 +23,13 @@ sandbox. Existing ownership markers and replay tamper tests remain in the
 full regression suite. New joined evidence records plan version 1; old
 versionless joined witnesses retain their compatibility path.
 
-The full-contract, unchanged DataProof-100 per-ID evaluation remains a
-separate missing gate: the private original ledger and source snapshots were
-not available at the recorded local paths. [The post-change accounting](dataproof-100-architecture-postchange.md)
-does not promote synthetic syntax coverage into original-task usefulness.
-Nor are three-table joins, scalar subqueries, windows, workflow adapters,
-general SQL, or publication-level scientific claims validated by these gates.
+The restored private DataProof-100 baseline now supports a [separate
+unchanged-ID reassessment](dataproof-100-architecture-postchange.md): all
+100 IDs accounted for, 34 unchanged direct authored inputs checked on the
+exact current Wheel, 28/28 preserved finite-oracle agreements and 20/20
+positive independent DuckDB replays. The 50 public-origin records still
+have no complete as-stated executable fixture: **0/50 independently solved**.
+Other authored Proof2Test/injected reliability controls were not rerun in
+this pass, and no authored control is an external developer task. Three-table
+joins, scalar subqueries, windows, shared workflow adapters, general SQL and
+publication-level scientific claims are not validated by these gates.
