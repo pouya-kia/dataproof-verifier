@@ -1,4 +1,4 @@
-"""Isolated CLI workflow for complete tiny two-table INNER/LEFT JOIN checks."""
+"""Isolated CLI workflow for complete tiny two-table equijoin checks."""
 
 from __future__ import annotations
 
@@ -54,6 +54,8 @@ def _fragment_limits() -> dict[str, Any]:
         "string_length": [1, 32],
         "integer_arithmetic": "ADD_SUB_SIGNED_32_BIT_NO_POSSIBLE_OVERFLOW",
         "case_when_arms": 3,
+        "join_forms": ["INNER", "LEFT", "RIGHT", "FULL"],
+        "equality_keys_per_join": [1, 2],
     }
 
 
@@ -297,7 +299,11 @@ def explain_witness(path: Path) -> int:
         return lines
 
     metric = parse_join_query(spec.metric_sql, spec, metric=True)
-    label = "INNER JOIN" if view.join_kind == metric.join_kind == "inner" else "INNER/LEFT JOIN"
+    label = (
+        "INNER JOIN"
+        if view.join_kind == metric.join_kind == "inner"
+        else "INNER/LEFT/RIGHT/FULL JOIN"
+    )
     print(f"NoUndo — bounded two-table {label} counterexample")
     for index, label in enumerate(("D1", "D2")):
         print(f"{label}:")

@@ -97,5 +97,8 @@ jobs:
           dataproof-verifier join preflight examples/join/string_distinct.json
           dataproof-verifier join check examples/join/string_distinct.json --output "$join_tmp/string"
           dataproof-verifier join replay "$join_tmp/string/witness.json"
+          dataproof-verifier join preflight examples/join/right_missing_match.json
+          dataproof-verifier join check examples/join/right_missing_match.json --output "$join_tmp/right"
+          dataproof-verifier join replay "$join_tmp/right/witness.json"
       - name: Dependency consistency
         run: python -m pip check
