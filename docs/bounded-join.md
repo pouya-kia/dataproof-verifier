@@ -19,6 +19,7 @@ dataproof-verifier join check examples/join/fanout.json --output artifacts/my-ne
 dataproof-verifier join replay artifacts/my-new-join-run/witness.json
 dataproof-verifier join explain artifacts/my-new-join-run/witness.json
 dataproof-verifier join preflight examples/join/left_missing_match.json
+dataproof-verifier join preflight examples/join/projection_cte.json
 ```
 
 `--output` **must name a new directory** for each run. The command refuses
@@ -44,8 +45,16 @@ and creates only a result record, not a witness.
   with a NULL-generated tuple on the missing side. Duplicate source rows remain
   duplicate joined rows; genuine NULL and missing-match NULL may have the same
   projected value. The view and metric may choose join forms independently.
-  Neither query has a CTE, additional join, derived source,
-  or any other clause except an optional restricted `WHERE` and the view's
+  A source may be a projection-only, row-preserving derived table or reference
+  up to two nonrecursive CTE definitions with earlier-CTE dependencies. Each
+  inner SELECT projects one to three direct source columns, optionally
+  renaming them; it may not filter, aggregate, deduplicate, order, limit,
+  compute expressions or read another table. Source aliases and projected
+  column scope are checked; the finite evaluator resolves these renames to
+  base columns, while DuckDB executes the unchanged original SQL. This is
+  bag-preserving AST normalization, not general subquery evaluation. Neither
+  query has an additional join or any other clause except an optional
+  restricted `WHERE` and the view's
   one or two direct, distinct `GROUP BY` columns. Each query may use its own
   `WHERE`. Admitted predicates combine `AND`, `OR`, `NOT`, parentheses,
   direct-column `IS NULL`/`IS NOT NULL`, and direct comparisons
@@ -126,8 +135,9 @@ establishes that raw data were deleted in any external workflow.
 Unsupported forms fail closed: implicit/comma/cross/semi/anti joins,
 multiple joins or retained views, non-equality `ON`, more than two join keys,
 unsupported string expressions,
-more than two grouping columns, `HAVING`, windows, `ORDER BY`, subqueries,
-CTEs, arbitrary SQL dialects, writes, UDFs, production database access and
+more than two grouping columns, `HAVING`, windows, `ORDER BY`, scalar or
+correlated subqueries, filtering/aggregate CTEs, recursive CTEs,
+multi-stage aggregation, arbitrary SQL dialects, writes, UDFs, production database access and
 dbt model graphs. The existing one-table NoUndo, Doppelgänger and Proof2Test
 contracts remain unchanged. No public-origin task in the frozen 50-record
 intake has been counted as solved by this new synthetic capability.

@@ -1,0 +1,21 @@
+{
+  "tables": [
+    {
+      "name": "orders",
+      "max_rows": 1,
+      "columns": [
+        {"name": "id", "type": "INTEGER", "domain": [1]},
+        {"name": "cid", "type": "INTEGER", "domain": [1, 2]}
+      ]
+    },
+    {
+      "name": "customers",
+      "max_rows": 1,
+      "columns": [
+        {"name": "cid", "type": "INTEGER", "domain": [1]}
+      ]
+    }
+  ],
+  "view": "WITH projected_orders AS (SELECT id AS order_id, cid AS customer_id FROM orders) SELECT c.cid AS cid, COUNT(*) AS n FROM projected_orders AS o RIGHT JOIN customers AS c ON o.customer_id = c.cid GROUP BY c.cid",
+  "metric": "SELECT COUNT(o.order_id) AS matched FROM (SELECT id AS order_id, cid FROM orders) AS o RIGHT JOIN customers AS c ON o.cid = c.cid"
+}
