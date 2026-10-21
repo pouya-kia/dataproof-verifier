@@ -12,7 +12,7 @@ The NoUndo limits are:
 
 The strongest open correctness risks are a SQLGlot AST change not caught by the guard, an SMT/DuckDB mismatch in an untested boundary case, and an untested platform-specific DuckDB behavior. Adversarial, exhaustive and replay tests reduce these risks but do not eliminate them.
 
-An **unreleased, separate** [bounded two-table INNER JOIN check](bounded-join.md)
+An **unreleased, separate** [bounded two-table INNER/LEFT JOIN check](bounded-join.md)
 is available in development source. It does not extend the published
 `v0.1.0a1` Wheel or the one-table/Z3 command. Its complete finite Python
 search and DuckDB reference are capped at 500 analytical combined worlds;
@@ -20,7 +20,7 @@ they share admission/world-generation assumptions. Deadline checks are
 cooperative, not an OS hard timeout or memory ceiling. The separate join
 command now admits restricted three-valued `WHERE` comparisons/Boolean
 connectives and up to two direct grouping columns; the one-table/Z3 command
-does not. Outer joins, arbitrary expressions, dbt graphs and unrestricted SQL
+does not. RIGHT/FULL joins, compound ON predicates, arbitrary expressions, dbt graphs and unrestricted SQL
 remain unsupported. No original public task
 has been demonstrated solved unchanged by this addition.
 

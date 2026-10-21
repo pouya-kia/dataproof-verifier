@@ -1,7 +1,7 @@
 """A separate, deliberately tiny two-table NoUndo contract.
 
 The published one-table/Z3 contract is unchanged. This module admits only
-explicit INNER equijoins and uses complete finite search plus DuckDB checking.
+explicit INNER/LEFT equijoins and uses complete finite search plus DuckDB checking.
 """
 
 from __future__ import annotations
@@ -58,6 +58,7 @@ class JoinPredicate:
 
 @dataclass(frozen=True)
 class JoinQuery:
+    join_kind: str
     on: tuple[Ref, Ref]
     group_by: tuple[Ref, ...]
     where: JoinPredicate | None
@@ -294,13 +295,19 @@ def parse_join_query(sql: str, spec: JoinSpec, *, metric: bool) -> JoinQuery:
     source = node.args.get("from_")
     joins = node.args.get("joins")
     if not isinstance(source, exp.From) or not isinstance(joins, list) or len(joins) != 1:
-        raise UnsupportedError("exactly one explicit INNER JOIN is required")
+        raise UnsupportedError("exactly one explicit INNER or LEFT JOIN is required")
     if any(value for key, value in source.args.items() if key != "this"):
         raise UnsupportedError("unsupported FROM source")
     join = joins[0]
-    if not isinstance(join, exp.Join) or join.args.get("kind") != "INNER" or join.args.get("side"):
-        raise UnsupportedError("only explicit INNER JOIN is supported")
-    if any(value for key, value in join.args.items() if key not in {"this", "kind", "on"}):
+    if not isinstance(join, exp.Join):
+        raise UnsupportedError("only explicit INNER or LEFT JOIN is supported")
+    if join.args.get("side") == "LEFT" and join.args.get("kind") in {None, "OUTER"}:
+        join_kind = "left"
+    elif join.args.get("kind") == "INNER" and not join.args.get("side"):
+        join_kind = "inner"
+    else:
+        raise UnsupportedError("only explicit INNER or LEFT JOIN is supported")
+    if any(value for key, value in join.args.items() if key not in {"this", "kind", "side", "on"}):
         raise UnsupportedError("unsupported JOIN option")
     aliases = (
         _table(source.this, spec.tables[0].table),
@@ -369,7 +376,7 @@ def parse_join_query(sql: str, spec: JoinSpec, *, metric: bool) -> JoinQuery:
         or not any(p.aggregate is not None for p in projections)
     ):
         raise UnsupportedError("view needs every grouping column once and an aggregate")
-    return JoinQuery((left, right), group_refs, condition, tuple(projections))
+    return JoinQuery(join_kind, (left, right), group_refs, condition, tuple(projections))
 
 
 def all_join_worlds(spec: JoinSpec) -> list[World]:

@@ -105,7 +105,7 @@ def test_symlink_output_is_rejected_without_following_it(tmp_path: Path) -> None
 
 def test_preflight_rejects_unsupported_and_invalid_without_artifacts(tmp_path: Path) -> None:
     raw = _raw()
-    raw["view"] = str(raw["view"]).replace("INNER JOIN", "LEFT JOIN")
+    raw["view"] = str(raw["view"]).replace("INNER JOIN", "RIGHT JOIN")
     unsupported = _file(tmp_path, raw)
     assert join_cli.preflight(unsupported, True) == 5
     assert join_cli.check(unsupported, tmp_path / "unsupported-out", True) == 5
@@ -226,7 +226,7 @@ def test_backend_error_and_timeout_are_durable(
 @pytest.mark.parametrize(
     "sql",
     [
-        f"{SELECT} FROM orders AS o LEFT JOIN customers AS c ON o.cid = c.cid GROUP BY o.cid",
+        f"{SELECT} FROM orders AS o RIGHT JOIN customers AS c ON o.cid = c.cid GROUP BY o.cid",
         f"{SELECT} FROM orders AS o JOIN customers AS c ON o.cid = c.cid GROUP BY o.cid",
         f"{SELECT} {INNER} WHERE ABS(o.id) = 1 GROUP BY o.cid",
         f"{SELECT} {INNER} OR o.id = c.cid GROUP BY o.cid",
@@ -472,3 +472,98 @@ def test_date_column_where_comparison_differential() -> None:
             assert py_metric == db_metric
     finally:
         con.close()
+
+
+@pytest.mark.parametrize("join_sql", ["LEFT JOIN", "LEFT OUTER JOIN"])
+def test_left_join_complete_world_differential(join_sql: str) -> None:
+    raw = _raw()
+    for table, index in ((raw["tables"][0], 1), (raw["tables"][1], 0)):  # type: ignore[index]
+        table["columns"][index]["nullable"] = True  # type: ignore[index]
+        table["columns"][index]["domain"] = [7, None]  # type: ignore[index]
+    raw["view"] = (
+        "SELECT c.cid AS matched_key, COUNT(*) AS rows, COUNT(c.cid) AS matched, "
+        "COUNT(DISTINCT o.id) AS order_count, SUM(o.id) AS total, MIN(o.id) AS lo, "
+        "MAX(o.id) AS hi FROM orders AS o INNER JOIN customers AS c "
+        "ON o.cid = c.cid GROUP BY c.cid"
+    )
+    raw["metric"] = (
+        "SELECT COUNT(c.cid) AS matched FROM orders AS o INNER JOIN customers AS c ON o.cid = c.cid"
+    )
+    raw["view"] = str(raw["view"]).replace("INNER JOIN", join_sql)
+    raw["metric"] = str(raw["metric"]).replace("INNER JOIN", join_sql)
+    spec = parse_join_spec(raw)
+    view = parse_join_query(spec.view_sql, spec, metric=False)
+    metric = parse_join_query(spec.metric_sql, spec, metric=True)
+    assert view.join_kind == metric.join_kind == "left"
+    con = replay._connection()
+    try:
+        for table in spec.tables:
+            con.execute(replay._create_table(table))
+        for world in all_join_worlds(spec):
+            py_view = join_reference.evaluate_python(view, spec, world)
+            py_metric = join_reference.evaluate_python(metric, spec, world)[0][0]
+            db_view, db_metric = join_reference.evaluate_duckdb(con, spec, world)
+            assert Counter(py_view) == Counter(db_view)
+            assert py_metric == db_metric
+    finally:
+        con.close()
+
+
+def test_left_join_where_filters_null_extended_rows() -> None:
+    raw = _raw()
+    raw["view"] = str(raw["view"]).replace("INNER JOIN", "LEFT JOIN")
+    spec = parse_join_spec(raw)
+    world = (((1, 7),), ())
+    without_filter = parse_join_query(spec.view_sql, spec, metric=False)
+    with_filter = parse_join_query(
+        spec.view_sql.replace(" GROUP BY", " WHERE c.cid IS NOT NULL GROUP BY"),
+        spec,
+        metric=False,
+    )
+    assert join_reference.evaluate_python(without_filter, spec, world) == ((7, 1),)
+    assert join_reference.evaluate_python(with_filter, spec, world) == ()
+    con = replay._connection()
+    try:
+        for table in spec.tables:
+            con.execute(replay._create_table(table))
+        assert Counter(join_reference.evaluate_duckdb(con, spec, world)[0]) == Counter({(7, 1): 1})
+        assert (
+            con.execute(
+                spec.view_sql.replace(" GROUP BY", " WHERE c.cid IS NOT NULL GROUP BY")
+            ).fetchall()
+            == []
+        )
+    finally:
+        con.close()
+
+
+def test_left_join_positive_replay_and_empty_negative(tmp_path: Path) -> None:
+    raw = _raw()
+    raw["view"] = str(raw["view"]).replace("INNER JOIN", "LEFT JOIN")
+    raw["metric"] = (
+        "SELECT COUNT(c.cid) AS matched FROM orders AS o LEFT JOIN customers AS c ON o.cid = c.cid"
+    )
+    source = _file(tmp_path, raw)
+    out = tmp_path / "left-positive"
+    assert join_cli.check(source, out, True) == 0
+    assert validate_serialized(out / "witness.json") == (True, "REPLAY_OK")
+    result = json.loads((out / "result.json").read_text())
+    assert result["metric_values"] == [0, 1]
+    for table in raw["tables"]:  # type: ignore[union-attr]
+        table["max_rows"] = 0  # type: ignore[index]
+    empty_source = tmp_path / "empty.json"
+    empty_source.write_text(json.dumps(raw))
+    empty_out = tmp_path / "left-empty"
+    assert join_cli.check(empty_source, empty_out, True) == 3
+    assert json.loads((empty_out / "result.json").read_text())["bounded_exhaustion_complete"]
+
+
+def test_compound_left_on_is_rejected_even_with_supported_where() -> None:
+    raw = _raw()
+    raw["view"] = str(raw["view"]).replace(
+        "INNER JOIN customers AS c ON o.cid = c.cid",
+        "LEFT JOIN customers AS c ON o.cid = c.cid AND o.id = 1",
+    )
+    spec = parse_join_spec(raw)
+    with pytest.raises(UnsupportedError, match="JOIN ON"):
+        parse_join_query(spec.view_sql, spec, metric=False)
