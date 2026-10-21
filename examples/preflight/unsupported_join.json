@@ -1,0 +1,14 @@
+{
+  "table": {
+    "name": "orders",
+    "columns": [
+      {"name": "day", "type": "DATE", "nullable": false, "domain": ["2026-01-01"]},
+      {"name": "customer_id", "type": "INTEGER", "nullable": false, "domain": [1]}
+    ]
+  },
+  "views": [
+    "SELECT day, COUNT(*) AS n FROM orders JOIN customers ON orders.customer_id = customers.customer_id GROUP BY day"
+  ],
+  "metric": "SELECT COUNT(*) AS n FROM orders",
+  "max_rows": 2
+}

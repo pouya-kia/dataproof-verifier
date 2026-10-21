@@ -1,0 +1,12 @@
+"""Public status and CLI exit code contract."""
+
+EXIT_CODES = {
+    "COUNTEREXAMPLE_FOUND": 0,
+    "PROVEN_WITHIN_FRAGMENT": 0,
+    "BOUNDED_NO_COUNTEREXAMPLE": 3,
+    "INCONCLUSIVE": 4,
+    "INCONCLUSIVE_UNKNOWN": 8,
+    "UNSUPPORTED": 5,
+    "INVALID_INPUT": 6,
+    "INVALID_CANDIDATE": 7,
+}

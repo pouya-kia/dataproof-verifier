@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "target_kind": "single_table_sql",
+  "model_name": "clean_orders",
+  "expected_rows": [[0]],
+  "expected_behavior": "For this synthetic witness, the declared policy clamps a negative amount to zero; the output must satisfy the source no-negative-amount invariant.",
+  "dbt_model_sql": "SELECT amount FROM {{ ref('orders') }}"
+}

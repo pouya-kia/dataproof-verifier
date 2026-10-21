@@ -1,0 +1,17 @@
+{
+  "table": {
+    "name": "orders",
+    "columns": [
+      {"name": "day", "type": "DATE", "nullable": false, "domain": ["2026-01-01", "2026-01-02"]},
+      {"name": "customer_id", "type": "INTEGER", "nullable": false, "domain": [1, 2]}
+    ],
+    "primary_key": [],
+    "unique": []
+  },
+  "views": ["SELECT day, COUNT(DISTINCT customer_id) AS daily_customers FROM orders GROUP BY day"],
+  "metric": "SELECT COUNT(DISTINCT customer_id) AS monthly_customers FROM orders",
+  "max_rows": 2,
+  "timeout_ms": 10000,
+  "max_memory_mb": 256,
+  "seed": 0
+}

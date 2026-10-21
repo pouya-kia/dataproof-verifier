@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=80,<85", "wheel>=0.45,<1"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dataproof-verifier"
+version = "0.1.0a1"
+description = "Bounded replayable checks for SQL view determinacy and test blind spots"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+license = "MIT"
+authors = [{name = "Pouya Kia"}]
+classifiers = [
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+  "duckdb==1.5.6",
+  "sqlglot==29.0.1",
+  "z3-solver==5.3.1.0",
+  "PyYAML==6.0.3",
+]
+
+[project.optional-dependencies]
+dev = [
+  "build==1.6.1",
+  "hypothesis==6.170.1",
+  "mypy==1.20.2",
+  "pip-audit==2.10.1",
+  "pytest==9.1.1",
+  "ruff==0.17.1",
+  "types-PyYAML==6.0.12.20260906",
+]
+
+[project.scripts]
+dataproof-verifier = "dataproof_verifier.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src"]
+
+[[tool.mypy.overrides]]
+module = ["z3"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]

@@ -1,0 +1,23 @@
+# Local environments, build outputs and generated demo artifacts.
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+artifacts/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+htmlcov/
+.DS_Store
+.env
+.env.*
+
+# Defense in depth for private handoff/research material. Do not copy it here.
+/AGENTS.md
+/research/private/
+/research/runs/local/

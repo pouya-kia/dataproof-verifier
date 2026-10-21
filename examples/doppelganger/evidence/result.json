@@ -1,0 +1,85 @@
+{
+  "assumptions": [
+    "one synthetic table with finite INTEGER/DATE domains",
+    "bag rows and declared keys/nullability",
+    "each existing test must be SQL TRUE",
+    "the separately supplied invariant must be SQL FALSE",
+    "bounded absence is not a universal proof"
+  ],
+  "input_sha256": "cf5aa0d314018bdfe755a8d88b93368ac4f8e9e6abe49e159159471fe0c0ae6c",
+  "invariant_evaluation": {
+    "id": "no_negative_amount",
+    "truth": false,
+    "value": 1
+  },
+  "module": "doppelganger",
+  "reason": null,
+  "replay_sql_path": "examples/doppelganger/evidence/replay.sql",
+  "schema_version": 1,
+  "search": {
+    "backend": "Z3 one-world finite row slots",
+    "max_memory_mb": 256,
+    "max_rows": 2,
+    "reduction": "lexicographic row count then declared domain codes",
+    "row_minimal_verified": true,
+    "seed": 0,
+    "timeout_ms": 10000
+  },
+  "spec": {
+    "invariant": {
+      "id": "no_negative_amount",
+      "op": "=",
+      "rationale": "Settled orders must not carry a negative amount.",
+      "sql": "SELECT COUNT(*) AS n FROM orders WHERE amount = -1",
+      "value": 0
+    },
+    "max_memory_mb": 256,
+    "max_rows": 2,
+    "output_dir": "examples/doppelganger/evidence",
+    "schema_version": 1,
+    "seed": 0,
+    "table": {
+      "columns": [
+        {
+          "domain": [
+            -1,
+            0,
+            1
+          ],
+          "name": "amount",
+          "nullable": false,
+          "type": "INTEGER"
+        }
+      ],
+      "name": "orders",
+      "primary_key": [],
+      "unique": []
+    },
+    "tests": [
+      {
+        "id": "has_orders",
+        "op": ">=",
+        "sql": "SELECT COUNT(*) AS n FROM orders",
+        "value": 1
+      }
+    ],
+    "timeout_ms": 10000
+  },
+  "status": "BLIND_SPOT_FOUND",
+  "test_evaluations": [
+    {
+      "id": "has_orders",
+      "truth": true,
+      "value": 1
+    }
+  ],
+  "versions": {
+    "dataproof": "0.1.0a1",
+    "duckdb": "1.5.6",
+    "platform": "macOS-27.0.1-arm64-arm-64bit",
+    "python": "3.11.16",
+    "sqlglot": "29.0.1",
+    "z3": "5.3.1"
+  },
+  "witness_path": "examples/doppelganger/evidence/witness.json"
+}

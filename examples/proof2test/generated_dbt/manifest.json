@@ -1,0 +1,8 @@
+{
+  "files": {
+    "fixture.json": "c5f452a0fcebce9a10b26a80f283d99e9c1d2c54fd255e6b78fe0f3e096427ac",
+    "unit_tests.yml": "e2a2046b621cfb295a91888b8827ccacc4ccd1a21e66cfa796eb1cdaead764ea"
+  },
+  "module": "proof2test",
+  "schema_version": 1
+}

@@ -1,0 +1,48 @@
+[
+  {
+    "id": "E01_daily_overlap",
+    "expected": "COUNTEREXAMPLE_FOUND"
+  },
+  {
+    "id": "E02_cross_day_unique",
+    "unique": [["customer_id"]],
+    "expected": "BOUNDED_NO_COUNTEREXAMPLE"
+  },
+  {
+    "id": "E03_daily_sum",
+    "view": "SELECT day, SUM(amount) AS daily_revenue FROM orders GROUP BY day",
+    "metric": "SELECT SUM(amount) AS monthly_revenue FROM orders",
+    "expected": "BOUNDED_NO_COUNTEREXAMPLE"
+  },
+  {
+    "id": "E04_null_count",
+    "customer_nullable": true,
+    "view": "SELECT day, COUNT(*) AS n FROM orders GROUP BY day",
+    "metric": "SELECT COUNT(customer_id) AS n FROM orders",
+    "expected": "COUNTEREXAMPLE_FOUND"
+  },
+  {
+    "id": "E05_bag_duplicate",
+    "view": "SELECT day, COUNT(DISTINCT customer_id) AS n FROM orders GROUP BY day",
+    "metric": "SELECT COUNT(*) AS n FROM orders",
+    "expected": "COUNTEREXAMPLE_FOUND"
+  },
+  {
+    "id": "E06_nullable_sum",
+    "amount_nullable": true,
+    "view": "SELECT day, COUNT(*) AS n FROM orders GROUP BY day",
+    "metric": "SELECT SUM(amount) AS n FROM orders",
+    "expected": "COUNTEREXAMPLE_FOUND"
+  },
+  {
+    "id": "E07_invalid_key",
+    "customer_nullable": true,
+    "primary_key": ["customer_id"],
+    "expected": "INVALID_INPUT"
+  },
+  {
+    "id": "E08_unsupported_window",
+    "view": "SELECT day, ROW_NUMBER() OVER (PARTITION BY day) AS n FROM orders GROUP BY day",
+    "expected": "UNSUPPORTED"
+  }
+]

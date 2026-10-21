@@ -1,0 +1,20 @@
+{
+  "table": {
+    "name": "orders",
+    "columns": [
+      {"name": "day", "type": "DATE", "nullable": false, "domain": ["2026-01-01", "2026-01-02"]},
+      {"name": "customer_id", "type": "INTEGER", "nullable": false, "domain": [1, 2]},
+      {"name": "amount", "type": "INTEGER", "nullable": false, "domain": [10]}
+    ],
+    "primary_key": [],
+    "unique": []
+  },
+  "views": [
+    "SELECT day, COUNT(*) AS order_count, SUM(amount) AS revenue_sum, COUNT(DISTINCT customer_id) AS daily_customers FROM orders GROUP BY day"
+  ],
+  "metric": "SELECT COUNT(DISTINCT customer_id) AS monthly_customers FROM orders",
+  "max_rows": 2,
+  "timeout_ms": 10000,
+  "seed": 7,
+  "output_dir": "../../artifacts/no_undo"
+}

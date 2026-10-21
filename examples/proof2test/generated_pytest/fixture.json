@@ -1,0 +1,57 @@
+{
+  "expected_rows": [
+    [
+      0
+    ]
+  ],
+  "model_name": "clean_orders",
+  "module": "proof2test",
+  "schema_version": 1,
+  "source_rows": [
+    [
+      -1
+    ]
+  ],
+  "source_spec": {
+    "invariant": {
+      "id": "no_negative_amount",
+      "op": "=",
+      "rationale": "User-declared invariant; private rationale omitted.",
+      "sql": "SELECT COUNT(*) AS n FROM orders WHERE amount = -1",
+      "value": 0
+    },
+    "max_memory_mb": 256,
+    "max_rows": 2,
+    "output_dir": "artifacts/proof2test",
+    "schema_version": 1,
+    "seed": 0,
+    "table": {
+      "columns": [
+        {
+          "domain": [
+            -1,
+            0,
+            1
+          ],
+          "name": "amount",
+          "nullable": false,
+          "type": "INTEGER"
+        }
+      ],
+      "name": "orders",
+      "primary_key": [],
+      "unique": []
+    },
+    "tests": [
+      {
+        "id": "has_orders",
+        "op": ">=",
+        "sql": "SELECT COUNT(*) AS n FROM orders",
+        "value": 1
+      }
+    ],
+    "timeout_ms": 10000
+  },
+  "source_witness_sha256": "d82ad4c2aa231d65dca09119c4aeed5b4fd9e796cc117fc6df009e2ac3117df4",
+  "target_contract_sha256": "03d87c124cc16b176b57c5cc5abd981008bdad145ff6ccb767e181c343c738f1"
+}

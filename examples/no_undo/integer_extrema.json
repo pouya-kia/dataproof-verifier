@@ -1,0 +1,20 @@
+{
+  "table": {
+    "name": "orders",
+    "columns": [
+      {"name": "day", "type": "DATE", "nullable": false, "domain": ["2026-01-01", "2026-01-02"]},
+      {"name": "customer_id", "type": "INTEGER", "nullable": false, "domain": [1, 2]},
+      {"name": "amount", "type": "INTEGER", "nullable": true, "domain": [-3, 10, null]}
+    ],
+    "primary_key": [],
+    "unique": []
+  },
+  "views": [
+    "SELECT day, MIN(amount) AS daily_min, MAX(amount) AS daily_max FROM orders GROUP BY day"
+  ],
+  "metric": "SELECT COUNT(*) AS all_orders FROM orders",
+  "max_rows": 2,
+  "timeout_ms": 10000,
+  "seed": 7,
+  "output_dir": "../../artifacts/no_undo_extrema"
+}

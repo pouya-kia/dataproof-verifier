@@ -1,0 +1,13 @@
+version: 2
+unit_tests:
+- name: proof2test_clean_orders_d82ad4c2
+  model: clean_orders
+  given:
+  - input: ref('orders')
+    format: dict
+    rows:
+    - amount: -1
+  expect:
+    format: dict
+    rows:
+    - amount: 0

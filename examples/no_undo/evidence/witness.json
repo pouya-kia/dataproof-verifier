@@ -1,0 +1,141 @@
+{
+  "assumptions": [
+    "DuckDB SQL dialect",
+    "one synthetic table and one grouped retained view",
+    "bag source rows and unordered multiset view equality",
+    "finite explicitly declared domains and row bound",
+    "exact integer amounts, SQL NULL aggregates"
+  ],
+  "input_sha256": "76c965dcf82fa2a4b135d57a7f6f6d0de81f2d1b96ad05a6443af7bdab1fa0b3",
+  "metric_values": [
+    1,
+    2
+  ],
+  "reason": null,
+  "replay_command": "dataproof replay examples/no_undo/evidence/witness.json",
+  "replay_sql_path": "examples/no_undo/evidence/replay.sql",
+  "schema_version": 1,
+  "search": {
+    "backend": "Z3 finite row slots",
+    "domain_sizes": {
+      "amount": 1,
+      "customer_id": 2,
+      "day": 2
+    },
+    "max_memory_mb": 256,
+    "max_rows_per_world": 2,
+    "seed": 7,
+    "timeout_ms": 10000
+  },
+  "spec": {
+    "max_memory_mb": 256,
+    "max_rows": 2,
+    "metric": "SELECT COUNT(DISTINCT customer_id) AS monthly_customers FROM orders",
+    "output_dir": "examples/no_undo/evidence",
+    "seed": 7,
+    "table": {
+      "columns": [
+        {
+          "domain": [
+            "2026-01-01",
+            "2026-01-02"
+          ],
+          "name": "day",
+          "nullable": false,
+          "type": "DATE"
+        },
+        {
+          "domain": [
+            1,
+            2
+          ],
+          "name": "customer_id",
+          "nullable": false,
+          "type": "INTEGER"
+        },
+        {
+          "domain": [
+            10
+          ],
+          "name": "amount",
+          "nullable": false,
+          "type": "INTEGER"
+        }
+      ],
+      "name": "orders",
+      "primary_key": [],
+      "unique": []
+    },
+    "timeout_ms": 10000,
+    "views": [
+      "SELECT day, COUNT(*) AS order_count, SUM(amount) AS revenue_sum, COUNT(DISTINCT customer_id) AS daily_customers FROM orders GROUP BY day"
+    ]
+  },
+  "status": "COUNTEREXAMPLE_FOUND",
+  "versions": {
+    "dataproof": "0.1.0a1",
+    "duckdb": "1.5.6",
+    "platform": "macOS-27.0.1-arm64-arm-64bit",
+    "python": "3.11.16",
+    "sqlglot": "29.0.1",
+    "z3": "5.3.1"
+  },
+  "view_rows": [
+    [
+      [
+        "2026-01-01",
+        1,
+        10,
+        1
+      ],
+      [
+        "2026-01-02",
+        1,
+        10,
+        1
+      ]
+    ],
+    [
+      [
+        "2026-01-01",
+        1,
+        10,
+        1
+      ],
+      [
+        "2026-01-02",
+        1,
+        10,
+        1
+      ]
+    ]
+  ],
+  "witness_path": "examples/no_undo/evidence/witness.json",
+  "worlds": {
+    "D1": [
+      [
+        "2026-01-01",
+        1,
+        10
+      ],
+      [
+        "2026-01-02",
+        1,
+        10
+      ]
+    ],
+    "D2": [
+      [
+        "2026-01-01",
+        1,
+        10
+      ],
+      [
+        "2026-01-02",
+        2,
+        10
+      ]
+    ]
+  },
+  "worlds_sha256": "aa463f015672872c2fc60be2dd6587d21d3881a19a8f8fdccbf1e62c3b4df2c3"
+}

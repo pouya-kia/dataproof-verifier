@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "table": {
+    "name": "orders",
+    "columns": [
+      {"name": "amount", "type": "INTEGER", "nullable": false, "domain": [-1, 0, 1]}
+    ]
+  },
+  "max_rows": 2,
+  "timeout_ms": 10000,
+  "max_memory_mb": 256,
+  "seed": 0,
+  "tests": [
+    {"id": "has_orders", "sql": "SELECT COUNT(*) AS n FROM orders", "op": ">=", "value": 1}
+  ],
+  "invariant": {
+    "id": "no_negative_amount",
+    "sql": "SELECT COUNT(*) AS n FROM orders WHERE amount = -1",
+    "op": "=",
+    "value": 0,
+    "rationale": "Settled orders must not carry a negative amount."
+  }
+}
