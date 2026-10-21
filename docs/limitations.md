@@ -17,8 +17,11 @@ is available in development source. It does not extend the published
 `v0.1.0a1` Wheel or the one-table/Z3 command. Its complete finite Python
 search and DuckDB reference are capped at 500 analytical combined worlds;
 they share admission/world-generation assumptions. Deadline checks are
-cooperative, not an OS hard timeout or memory ceiling. Outer joins, filters,
-dbt graphs and unrestricted SQL remain unsupported. No original public task
+cooperative, not an OS hard timeout or memory ceiling. The separate join
+command now admits restricted three-valued `WHERE` comparisons/Boolean
+connectives and up to two direct grouping columns; the one-table/Z3 command
+does not. Outer joins, arbitrary expressions, dbt graphs and unrestricted SQL
+remain unsupported. No original public task
 has been demonstrated solved unchanged by this addition.
 
 Doppelgänger is a separate, one-dataset workflow. It accepts one synthetic table, one to four named existing-test assertions and one separately supplied invariant, each expressed as a guarded scalar aggregate compared with an integer literal. `NULL`/UNKNOWN is neither a passing test nor a confirmed invariant failure. It does not infer business rules, run arbitrary dbt tests or Python, connect to production, or prove test adequacy from a bounded miss. A supplied rationale is an input assertion, not independently established business truth. See the [exact contract](doppelganger.md).
