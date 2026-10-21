@@ -7,7 +7,7 @@ motivated by repeated join-cardinality/fanout blockers in the
 [DataProof-100 evaluation](evaluation/dataproof-100-evaluation.md). It does
 **not** run the original multi-model dbt or BI tasks in that intake. The
 published `v0.1.0a1` Wheel does **not** contain this command. The current
-source is an untagged `0.1.0a3` candidate, not a published release.
+source is an untagged `0.1.0a4.dev0` development candidate, not a published release.
 
 ## Use from this development source
 
