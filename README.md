@@ -1,11 +1,12 @@
-# DataProof — experimental Alpha (v0.1.0a1)
+# DataProof — experimental Alpha (v0.1.0a2 source candidate)
 
 DataProof is an offline, bounded SQL reasoning CLI. It works on small synthetic tables, not production databases. Its three workflows are distinct:
 
 Alpha v0.1.0a1 is publicly available from the [GitHub prerelease](https://github.com/pouya-kia/dataproof-verifier/releases/tag/v0.1.0a1). Distribution: `dataproof-verifier`; import: `dataproof_verifier`; CLI: `dataproof-verifier`. It is **not published on PyPI**; install from this repository or the release Wheel. The unrelated PyPI `dataproof` project is not a dependency.
 
-Current development source is version `0.1.0a2.dev0`; it is **unreleased** and
-is not interchangeable with the `v0.1.0a1` Wheel or its frozen evaluation.
+Current source is a locally and CI-tested `0.1.0a2` **release candidate**, not
+yet a tagged GitHub release or PyPI publication. The published `v0.1.0a1`
+Wheel and its frozen evaluation are unchanged.
 
 - **NoUndo:** find two legal source bags whose retained aggregate-view bags agree but whose downstream scalar KPIs differ.
 - **Doppelgänger:** find one legal source bag on which declared existing SQL assertions are TRUE while a separately supplied invariant is FALSE.
@@ -15,12 +16,15 @@ is not interchangeable with the `v0.1.0a1` Wheel or its frozen evaluation.
 
 ## Install and try it
 
-Python 3.11 or 3.12 is required for this Alpha. Installing dependencies may require a network; the installed core requires no account, API key, LLM, or cloud service. To install from the public source repository:
+Python 3.11 or 3.12 is required. Do not use a system `python3` that resolves
+to an older interpreter. Installing dependencies may require a network; the
+installed core requires no account, API key, LLM, or cloud service. To install
+from this public source candidate:
 
 ```sh
 git clone https://github.com/pouya-kia/dataproof-verifier.git
 cd dataproof-verifier
-python3 -m venv .venv
+python3.11 -m venv .venv
 .venv/bin/python -m pip install .
 .venv/bin/dataproof-verifier preflight no-undo examples/no_undo/daily_distinct.json
 .venv/bin/dataproof-verifier check examples/no_undo/daily_distinct.json --output artifacts/no-undo
@@ -50,11 +54,26 @@ DATAPROOF_TARGET_SQL=examples/proof2test/corrected.sql .venv/bin/pytest -q artif
 
 The defective model must fail the generated assertion; the corrected one must pass. A narrowly scoped dbt Core unit-test YAML adapter also exists; arbitrary dbt projects are unsupported. See the complete [offline demo](docs/demo.md), [preflight](docs/preflight.md), [explanation](docs/explain.md), [Doppelgänger](docs/doppelganger.md), and [Proof2Test](docs/proof2test.md) contracts.
 
-## Exact finite scope
+## Published v0.1.0a1 one-table finite scope
 
 One source table, at most three rows per world, at most four columns and four declared domain values per column; finite `INTEGER` and `DATE` values with explicit NULL, primary-key and nullable-UNIQUE rules. NoUndo admits one retained grouped aggregate view and one scalar aggregate KPI. Supported aggregates are `COUNT(*)`, `COUNT(column)`, `COUNT(DISTINCT column)`, exact integer `SUM`, and direct integer `MIN`/`MAX`. A query may have one guarded row filter: integer-column equality to a signed integer literal, `IS NULL`, or `IS NOT NULL`. Doppelgänger admits one to four existing scalar assertions and one independent invariant. NULL, SQL UNKNOWN, duplicate bags, and empty inputs have explicit semantics. Unsupported joins, multiple retained views, compound predicates, HAVING, windows, arbitrary expressions, timestamps, floating-point arithmetic, and production data access fail closed. The full [semantics](docs/semantics.md), [limitations](docs/limitations.md), and [architecture](docs/architecture.md) are part of this Alpha release.
 
-The CLI records assumptions, bounds, versions, hashes, witnesses, and replay artifacts. Reused output directories only clear unchanged DataProof-owned artifacts; unrelated files are preserved. Use separate directories for concurrent runs. See [artifact behavior](docs/limitations.md) and the demo. Scientific research scripts, raw runs, and manuscripts are not distributed in this Alpha release.
+The CLI records assumptions, bounds, versions, hashes, witnesses, and replay artifacts. Reused output directories only clear unchanged DataProof-owned artifacts; unrelated files are preserved. Use separate directories for concurrent runs. See [artifact behavior](docs/limitations.md) and the demo. Scientific research scripts, raw runs, and manuscripts are not distributed in this source candidate.
+
+The `0.1.0a2` source candidate additionally has a **separate** [bounded
+two-table INNER/LEFT JOIN workflow](docs/bounded-join.md): at most two rows per
+source, three columns and three effective domain values per column, and 500
+analytical combined worlds. It supports guarded three-valued WHERE predicates
+and at most two direct grouping columns. It uses complete finite Python search
+plus an independent DuckDB SQL reference, **not** the one-table Z3 encoding.
+It does not imply broad join, dbt, CTE, string, window, or incremental support.
+For example, after installation:
+
+```sh
+.venv/bin/dataproof-verifier join preflight examples/join/left_missing_match.json
+.venv/bin/dataproof-verifier join check examples/join/left_missing_match.json --output artifacts/left-join
+.venv/bin/dataproof-verifier join replay artifacts/left-join/witness.json
+```
 
 ## Contribute or report a problem
 
@@ -66,6 +85,7 @@ The [DataProof-100 engineering evaluation](docs/evaluation/dataproof-100-evaluat
 reports the Alpha's finite synthetic checks and the unchanged eligibility of
 50 public-origin records, including the negative coverage result.
 
-Unreleased development source also has a separate [bounded two-table INNER JOIN
-check](docs/bounded-join.md) for tiny join-fanout NoUndo obligations. It is
-not in the `v0.1.0a1` Wheel and does not change the Alpha's one-table commands.
+The [final post-change DataProof-100 accounting](docs/evaluation/sql-coverage-final.md)
+retains all 50 original public-origin problems and 50 synthetic controls. It
+does not claim that any original public-origin task was fully solved by the
+new candidate syntax. The `v0.1.0a1` release remains available separately.

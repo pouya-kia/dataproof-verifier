@@ -6,8 +6,8 @@ bag** over a restricted inner or left join but different values for a scalar dow
 motivated by repeated join-cardinality/fanout blockers in the
 [DataProof-100 evaluation](evaluation/dataproof-100-evaluation.md). It does
 **not** run the original multi-model dbt or BI tasks in that intake. The
-published `v0.1.0a1` Wheel does **not** contain this command. Development
-source is marked `0.1.0a2.dev0`, not a new release.
+published `v0.1.0a1` Wheel does **not** contain this command. The current
+source is a `0.1.0a2` candidate, not a published release.
 
 ## Use from this development source
 
