@@ -1,4 +1,4 @@
-"""Two distinct complete evaluators for the bounded INNER JOIN obligation.
+"""Two distinct complete evaluators for the bounded INNER/LEFT JOIN obligation.
 
 The Python bag evaluator is the search backend. DuckDB executes the accepted
 original SQL as a second finite reference. They share schema admission and
@@ -108,13 +108,18 @@ def _truth(
 
 
 def evaluate_python(query: JoinQuery, spec: JoinSpec, world: World) -> tuple[tuple[Any, ...], ...]:
-    joined = [
-        (left, right)
-        for left in world[0]
-        for right in world[1]
-        if _value(query.on[0], (left, right), spec) is not None
-        and _value(query.on[0], (left, right), spec) == _value(query.on[1], (left, right), spec)
-    ]
+    joined: list[tuple[tuple[Any, ...], tuple[Any, ...]]] = []
+    null_right = (None,) * len(spec.tables[1].columns)
+    for left in world[0]:
+        matches = [
+            (left, right)
+            for right in world[1]
+            if _value(query.on[0], (left, right), spec) is not None
+            and _value(query.on[0], (left, right), spec) == _value(query.on[1], (left, right), spec)
+        ]
+        joined.extend(matches)
+        if not matches and query.join_kind == "left":
+            joined.append((left, null_right))
     if query.where is not None:
         joined = [row for row in joined if _truth(query.where, row, spec) is True]
     if not query.group_by:

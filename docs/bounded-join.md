@@ -2,7 +2,7 @@
 
 This is a separate NoUndo workflow for one narrow Data Engineering question:
 can two legal tiny databases produce the **same retained grouped aggregate
-bag** over an inner join but different values for a scalar downstream KPI? It is
+bag** over a restricted inner or left join but different values for a scalar downstream KPI? It is
 motivated by repeated join-cardinality/fanout blockers in the
 [DataProof-100 evaluation](evaluation/dataproof-100-evaluation.md). It does
 **not** run the original multi-model dbt or BI tasks in that intake. The
@@ -18,6 +18,7 @@ dataproof-verifier join preflight examples/join/fanout.json
 dataproof-verifier join check examples/join/fanout.json --output artifacts/my-new-join-run
 dataproof-verifier join replay artifacts/my-new-join-run/witness.json
 dataproof-verifier join explain artifacts/my-new-join-run/witness.json
+dataproof-verifier join preflight examples/join/left_missing_match.json
 ```
 
 `--output` **must name a new directory** for each run. The command refuses
@@ -35,9 +36,12 @@ and creates only a result record, not a witness.
   validator. There are no foreign keys.
 - Exactly one retained grouped query and one scalar metric query. Both are
   DuckDB `SELECT` statements reading the two declared tables with explicit,
-  distinct aliases and **one explicit INNER JOIN** on equality of direct,
+  distinct aliases and **one explicit INNER or LEFT [OUTER] JOIN** on equality of direct,
   alias-qualified columns of the same declared type. NULL join keys do not
-  match. Neither query has a CTE, additional join, derived source,
+  match. LEFT JOIN preserves each unmatched left bag row with a NULL-generated
+  right tuple; genuine right-column NULL and missing-match NULL cannot be
+  distinguished by a projected right cell alone. The view and metric may choose
+  INNER or LEFT independently. Neither query has a CTE, additional join, derived source,
   or any other clause except an optional restricted `WHERE` and the view's
   one or two direct, distinct `GROUP BY` columns. Each query may use its own
   `WHERE`. Admitted predicates combine `AND`, `OR`, `NOT`, parentheses,
@@ -53,7 +57,10 @@ and creates only a result record, not a witness.
   `COUNT(DISTINCT column)`, and integer-column `SUM`, `MIN`, `MAX`.
   SQL grouping treats each NULL group-key component as one group; empty grouped output is
   an empty bag. Scalar `COUNT` of empty join output is 0, while `SUM`/extrema
-  are NULL. Output-column order matters; output-row order does not.
+  are NULL. With LEFT JOIN, `COUNT(*)` includes unmatched left rows whereas
+  `COUNT(right_column)` does not. A `WHERE` condition is applied **after**
+  null-extension; an `ON` condition beyond the one admitted equality is
+  rejected, not moved to `WHERE`. Output-column order matters; output-row order does not.
 - The analytical upper bound on **combined** two-table legal worlds must be
   at most 500, computed before key filtering. This conservative cap may
   reject a constrained schema with fewer actual worlds. Two databases are
@@ -86,15 +93,17 @@ external authenticity. Once the original input file is unavailable, a
 self-consistently rewritten bundle cannot be tied to that file without an
 independently trusted digest.
 
-The example is authored synthetic evidence: one database has one distinct
+The fanout example is authored synthetic evidence: one database has one distinct
 order joined to two duplicate customer rows; another has two distinct orders
 joined to one customer row. Both retain two joined rows, but the distinct
 order KPI is 1 versus 2. Ordinary `COUNT(DISTINCT ...)` on available raw
 sources can answer that KPI more simply; NoUndo becomes relevant only when
-the declared retained summary is all that remains. This example does not
-establish that raw data were deleted in any external workflow.
+the declared retained summary is all that remains. The new synthetic
+`left_missing_match.json` shows that unmatched and matched orders can retain
+the same grouped `COUNT(*)` while `COUNT(c.cid)` differs. Neither example
+establishes that raw data were deleted in any external workflow.
 
-Unsupported forms fail closed: implicit/comma/cross/outer/semi/anti joins,
+Unsupported forms fail closed: implicit/comma/cross/right/full/semi/anti joins,
 multiple joins or retained views, compound `ON`, string keys, unsupported expressions,
 more than two grouping columns, `HAVING`, windows, `ORDER BY`, subqueries,
 CTEs, arbitrary SQL dialects, writes, UDFs, production database access and

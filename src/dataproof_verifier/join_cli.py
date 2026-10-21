@@ -1,4 +1,4 @@
-"""Isolated CLI workflow for complete tiny two-table INNER JOIN checks."""
+"""Isolated CLI workflow for complete tiny two-table INNER/LEFT JOIN checks."""
 
 from __future__ import annotations
 
@@ -280,7 +280,9 @@ def explain_witness(path: Path) -> int:
             lines.append(f"  ({cells}) x {counts[row]}")
         return lines
 
-    print("NoUndo — bounded two-table INNER JOIN counterexample")
+    metric = parse_join_query(spec.metric_sql, spec, metric=True)
+    label = "INNER JOIN" if view.join_kind == metric.join_kind == "inner" else "INNER/LEFT JOIN"
+    print(f"NoUndo — bounded two-table {label} counterexample")
     for index, label in enumerate(("D1", "D2")):
         print(f"{label}:")
         for table, rows in zip(spec.tables, evidence["worlds"][label], strict=True):
