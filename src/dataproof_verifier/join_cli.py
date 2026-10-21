@@ -22,7 +22,8 @@ from dataproof_verifier.join_model import (
 from dataproof_verifier.join_reference import check_pair_duckdb, search_duckdb, search_python
 from dataproof_verifier.join_replay import digest, make_replay_sql, validate_serialized
 from dataproof_verifier.models import SpecError, UnsupportedError, load_raw_spec, serial_value
-from dataproof_verifier.relational_core import PLAN_VERSION
+from dataproof_verifier.relational_core import PLAN_VERSION, Aggregate, Materialize
+from dataproof_verifier.relational_pipeline import admit_query
 from dataproof_verifier.status import EXIT_CODES
 
 
@@ -39,8 +40,8 @@ def _emit(result: dict[str, Any], machine: bool) -> None:
 
 def _load(path: Path) -> JoinSpec:
     spec = parse_join_spec(load_raw_spec(path), path)
-    parse_join_query(spec.view_sql, spec, metric=False)
-    parse_join_query(spec.metric_sql, spec, metric=True)
+    admit_query(spec.view_sql, spec, metric=False)
+    admit_query(spec.metric_sql, spec, metric=True)
     return spec
 
 
@@ -57,7 +58,10 @@ def _fragment_limits() -> dict[str, Any]:
         "case_when_arms": 3,
         "join_forms": ["INNER", "LEFT", "RIGHT", "FULL"],
         "equality_keys_per_join": [1, 2],
-        "nested_sources": "up to two nonrecursive projection-only CTEs or derived tables",
+        "nested_sources": (
+            "up to two projection-only CTEs/derived sources in joined queries, "
+            "or one nonrecursive aggregate CTE/derived source with one outer aggregate stage"
+        ),
         "timestamp_policy": "UTC-naive ISO seconds; DATE_TRUNC DAY/MONTH grouping only",
     }
 
@@ -96,8 +100,8 @@ def _serial_views(views: tuple[tuple[tuple[Any, ...], ...], ...]) -> list[list[l
 
 def _run(spec: JoinSpec, path: Path, result: dict[str, Any]) -> tuple[dict[str, Any], int]:
     deadline = time.monotonic() + spec.timeout_ms / 1000
-    view = parse_join_query(spec.view_sql, spec, metric=False)
-    metric = parse_join_query(spec.metric_sql, spec, metric=True)
+    view = admit_query(spec.view_sql, spec, metric=False)
+    metric = admit_query(spec.metric_sql, spec, metric=True)
     candidate = search_python(spec, view, metric, deadline)
     result["worlds_examined"] = candidate.worlds_checked
     if candidate.status == "INCONCLUSIVE":
@@ -291,7 +295,7 @@ def explain_witness(path: Path) -> int:
         return EXIT_CODES["INVALID_CANDIDATE"]
     evidence = json.loads(path.read_text(encoding="utf-8"))
     spec = parse_join_spec(evidence["spec"])
-    view = parse_join_query(spec.view_sql, spec, metric=False)
+    view = admit_query(spec.view_sql, spec, metric=False)
 
     def bag_lines(rows: list[list[Any]], names: tuple[str, ...]) -> list[str]:
         counts = Counter(tuple(row) for row in rows)
@@ -303,12 +307,20 @@ def explain_witness(path: Path) -> int:
             lines.append(f"  ({cells}) x {counts[row]}")
         return lines
 
-    metric = parse_join_query(spec.metric_sql, spec, metric=True)
-    label = (
-        "INNER JOIN"
-        if view.join_kind == metric.join_kind == "inner"
-        else "INNER/LEFT/RIGHT/FULL JOIN"
-    )
+    metric = admit_query(spec.metric_sql, spec, metric=True)
+    if any(
+        isinstance(plan.root, Aggregate) and isinstance(plan.root.source, Materialize)
+        for plan in (view, metric)
+    ):
+        label = "aggregate CTE/derived JOIN"
+    else:
+        old_view = parse_join_query(spec.view_sql, spec, metric=False)
+        old_metric = parse_join_query(spec.metric_sql, spec, metric=True)
+        label = (
+            "INNER JOIN"
+            if old_view.join_kind == old_metric.join_kind == "inner"
+            else "INNER/LEFT/RIGHT/FULL JOIN"
+        )
     print(f"NoUndo — bounded two-table {label} counterexample")
     for index, label in enumerate(("D1", "D2")):
         print(f"{label}:")
@@ -316,13 +328,7 @@ def explain_witness(path: Path) -> int:
             print(f"  {table.table}:")
             print("\n".join(bag_lines(rows, table.names)))
         print(f"Retained view V({label}):")
-        print(
-            "\n".join(
-                bag_lines(
-                    evidence["view_rows"][index], tuple(item.name for item in view.projections)
-                )
-            )
-        )
+        print("\n".join(bag_lines(evidence["view_rows"][index], view.output_names)))
     print("The retained view bags are equal, including duplicate multiplicity.")
     print(f"Different scalar KPI values: {evidence['metric_values']}")
     print("Finite scope only; source and join duplicates are bags; no universal claim.")

@@ -26,6 +26,7 @@ from dataproof_verifier.join_model import (
 PLAN_VERSION = 1
 JoinedRow = tuple[tuple[Any, ...], ...]
 Bag = tuple[JoinedRow, ...]
+ColumnNames = tuple[tuple[str, ...], ...]
 
 
 @dataclass(frozen=True)
@@ -48,6 +49,7 @@ class Filter:
     source: PlanNode
     predicate: JoinPredicate
     output_tables: frozenset[int]
+    column_names: ColumnNames
 
 
 @dataclass(frozen=True)
@@ -56,9 +58,18 @@ class Aggregate:
     group_by: tuple[Ref | JoinScalar, ...]
     projections: tuple[JoinProjection, ...]
     output_tables: frozenset[int]
+    column_names: ColumnNames
 
 
-PlanNode = Scan | Join | Filter | Aggregate
+@dataclass(frozen=True)
+class Materialize:
+    """Expose one admitted subquery output bag as a scoped, single relation."""
+
+    source: PlanNode
+    output_tables: frozenset[int]
+
+
+PlanNode = Scan | Join | Filter | Aggregate | Materialize
 
 
 @dataclass(frozen=True)
@@ -76,12 +87,13 @@ def compile_join_query(query: JoinQuery, spec: JoinSpec) -> RelationalPlan:
     if not query.on or any(a.table != 0 or b.table != 1 for a, b in query.on):
         raise ValueError("join plan keys must be scope-checked left/right references")
     both = frozenset({0, 1})
+    names = tuple(table.names for table in spec.tables)
     source: PlanNode = Join(
         Scan(0, frozenset({0})), Scan(1, frozenset({1})), query.join_kind, query.on, both
     )
     if query.where is not None:
-        source = Filter(source, query.where, both)
-    root = Aggregate(source, query.group_by, query.projections, both)
+        source = Filter(source, query.where, both, names)
+    root = Aggregate(source, query.group_by, query.projections, both, names)
     return RelationalPlan(
         PLAN_VERSION,
         root,
@@ -90,16 +102,16 @@ def compile_join_query(query: JoinQuery, spec: JoinSpec) -> RelationalPlan:
     )
 
 
-def _value(ref: Ref, row: JoinedRow, spec: JoinSpec) -> Any:
-    return row[ref.table][spec.tables[ref.table].names.index(ref.column)]
+def _value(ref: Ref, row: JoinedRow, names: ColumnNames) -> Any:
+    return row[ref.table][names[ref.table].index(ref.column)]
 
 
-def _scalar(value: JoinScalar, row: JoinedRow, spec: JoinSpec) -> Any:
+def _scalar(value: JoinScalar, row: JoinedRow, names: ColumnNames) -> Any:
     if value.kind == "ref":
-        return _value(value.args[0], row, spec)
+        return _value(value.args[0], row, names)
     if value.kind == "timestamp_trunc":
         unit, ref = value.args
-        current = _value(ref, row, spec)
+        current = _value(ref, row, names)
         if current is None:
             return None
         assert isinstance(current, datetime)
@@ -115,55 +127,55 @@ def _scalar(value: JoinScalar, row: JoinedRow, spec: JoinSpec) -> Any:
     if value.kind == "null":
         return None
     if value.kind == "identity_cast":
-        return _scalar(value.args[0], row, spec)
+        return _scalar(value.args[0], row, names)
     if value.kind in {"add", "sub"}:
-        left, right = (_scalar(child, row, spec) for child in value.args)
+        left, right = (_scalar(child, row, names) for child in value.args)
         if left is None or right is None:
             return None
         return left + right if value.kind == "add" else left - right
     if value.kind == "case":
         base, arms, default = value.args
-        base_value = _scalar(base, row, spec) if base is not None else None
+        base_value = _scalar(base, row, names) if base is not None else None
         for condition, result in arms:
             if base is None:
                 assert isinstance(condition, JoinPredicate)
-                selected = _truth(condition, row, spec) is True
+                selected = _truth(condition, row, names) is True
             else:
                 assert isinstance(condition, JoinScalar)
-                candidate = _scalar(condition, row, spec)
+                candidate = _scalar(condition, row, names)
                 selected = (
                     base_value is not None and candidate is not None and base_value == candidate
                 )
             if selected:
-                return _scalar(result, row, spec)
-        return _scalar(default, row, spec)
+                return _scalar(result, row, names)
+        return _scalar(default, row, names)
     raise ValueError("unknown admitted scalar kind")
 
 
-def _truth(predicate: JoinPredicate, row: JoinedRow, spec: JoinSpec) -> bool | None:
+def _truth(predicate: JoinPredicate, row: JoinedRow, names: ColumnNames) -> bool | None:
     op = predicate.op
     operands = predicate.operands
     if op in {"and", "or"}:
         left, right = operands
         assert isinstance(left, JoinPredicate) and isinstance(right, JoinPredicate)
-        a, b = _truth(left, row, spec), _truth(right, row, spec)
+        a, b = _truth(left, row, names), _truth(right, row, names)
         if op == "and":
             return False if a is False or b is False else None if a is None or b is None else True
         return True if a is True or b is True else None if a is None or b is None else False
     if op == "not":
         inner = operands[0]
         assert isinstance(inner, JoinPredicate)
-        result = _truth(inner, row, spec)
+        result = _truth(inner, row, names)
         return None if result is None else not result
     if op == "is_null":
         ref = operands[0]
         assert isinstance(ref, Ref)
-        return _value(ref, row, spec) is None
+        return _value(ref, row, names) is None
     left, right = operands
     if isinstance(left, JoinPredicate) or isinstance(right, JoinPredicate):
         raise ValueError("predicate operands must be scalar")
-    left_value = _value(left, row, spec) if isinstance(left, Ref) else left
-    right_value = _value(right, row, spec) if isinstance(right, Ref) else right
+    left_value = _value(left, row, names) if isinstance(left, Ref) else left
+    right_value = _value(right, row, names) if isinstance(right, Ref) else right
     if left_value is None or right_value is None:
         return None
     if op == "eq":
@@ -176,11 +188,11 @@ def _truth(predicate: JoinPredicate, row: JoinedRow, spec: JoinSpec) -> bool | N
     raise ValueError("unknown admitted predicate kind")
 
 
-def _aggregate(agg: JoinAggregate, rows: Bag, spec: JoinSpec) -> Any:
+def _aggregate(agg: JoinAggregate, rows: Bag, names: ColumnNames) -> Any:
     if agg.kind == "count_star":
         return len(rows)
     assert agg.value is not None
-    values = [_scalar(agg.value, row, spec) for row in rows]
+    values = [_scalar(agg.value, row, names) for row in rows]
     nonnull = [value for value in values if value is not None]
     if agg.kind == "count":
         return len(nonnull)
@@ -209,6 +221,7 @@ def _eval(node: PlanNode, spec: JoinSpec, world: World) -> Bag | tuple[tuple[Any
     if isinstance(node, Join):
         left = _eval(node.left, spec, world)
         right = _eval(node.right, spec, world)
+        base_names = tuple(table.names for table in spec.tables)
         joined_rows: list[JoinedRow] = []
         matched_right: set[int] = set()
         for a in left:
@@ -219,9 +232,9 @@ def _eval(node: PlanNode, spec: JoinSpec, world: World) -> Bag | tuple[tuple[Any
                     for table in range(len(spec.tables))
                 )
                 if all(
-                    _value(k1, combined, spec) is not None
-                    and _value(k2, combined, spec) is not None
-                    and _value(k1, combined, spec) == _value(k2, combined, spec)
+                    _value(k1, combined, base_names) is not None
+                    and _value(k2, combined, base_names) is not None
+                    and _value(k1, combined, base_names) == _value(k2, combined, base_names)
                     for k1, k2 in node.on
                 ):
                     joined_rows.append(combined)
@@ -232,22 +245,26 @@ def _eval(node: PlanNode, spec: JoinSpec, world: World) -> Bag | tuple[tuple[Any
         if node.kind in {"right", "full"}:
             joined_rows.extend(b for index, b in enumerate(right) if index not in matched_right)
         return tuple(joined_rows)
+    if isinstance(node, Materialize):
+        return tuple((row,) for row in _eval(node.source, spec, world))
     if isinstance(node, Filter):
         return tuple(
             row
             for row in _eval(node.source, spec, world)
-            if _truth(node.predicate, row, spec) is True
+            if _truth(node.predicate, row, node.column_names) is True
         )
     if isinstance(node, Aggregate):
         source = _eval(node.source, spec, world)
         if not node.group_by:
             agg = node.projections[0].aggregate
             assert agg is not None
-            return ((_aggregate(agg, source, spec),),)
+            return ((_aggregate(agg, source, node.column_names),),)
         groups: dict[tuple[Any, ...], list[JoinedRow]] = {}
         for row in source:
             key = tuple(
-                _value(ref, row, spec) if isinstance(ref, Ref) else _scalar(ref, row, spec)
+                _value(ref, row, node.column_names)
+                if isinstance(ref, Ref)
+                else _scalar(ref, row, node.column_names)
                 for ref in node.group_by
             )
             groups.setdefault(key, []).append(row)
@@ -259,7 +276,9 @@ def _eval(node: PlanNode, spec: JoinSpec, world: World) -> Bag | tuple[tuple[Any
                     output.append(key[node.group_by.index(projection.ref)])
                 else:
                     assert projection.aggregate is not None
-                    output.append(_aggregate(projection.aggregate, tuple(members), spec))
+                    output.append(
+                        _aggregate(projection.aggregate, tuple(members), node.column_names)
+                    )
             result.append(tuple(output))
         return tuple(result)
     raise ValueError("unknown relational plan node")

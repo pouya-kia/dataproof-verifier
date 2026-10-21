@@ -75,8 +75,10 @@ The [Wave A engineering record](docs/evaluation/sql-coverage-wave-a.md) keeps
 the original-task result at 0/50 and distinguishes these finite synthetic checks.
 The [Wave B engineering record](docs/evaluation/sql-coverage-wave-b.md) covers
 composite keys and outer-join null extension without a three-table claim.
-Projection-only, row-preserving CTE chains and derived sources are admitted;
-filtered/aggregate CTEs and scalar subqueries are not. Restricted UTC-naive
+Projection-only, row-preserving CTE chains and derived sources are admitted.
+The `0.1.0a4.dev0` joined path also admits one guarded grouped aggregate CTE
+or derived source followed by one aggregate stage; general CTE graphs and
+scalar subqueries remain unsupported. Restricted UTC-naive
 second-precision TIMESTAMP values and `DATE_TRUNC` day/month grouping allow
 tiny period-count and COUNT DISTINCT examples. Timezone conversions, rolling
 frames and all `OVER` windows remain unsupported. See [Wave C](docs/evaluation/sql-coverage-wave-c.md),

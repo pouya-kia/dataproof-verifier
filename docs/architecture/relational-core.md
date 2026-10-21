@@ -1,8 +1,9 @@
 # Relational core ADR — version 1 compatibility slice
 
-Status: implemented for the existing two-table finite NoUndo workflow; the
-multi-stage and cross-workflow migrations remain pending. This ADR describes
-code in `join_model.py`, `relational_core.py`, `join_reference.py`, and
+Status: implemented for the existing two-table finite NoUndo workflow and one
+guarded aggregate CTE/derived pipeline. Broader multi-stage and cross-workflow
+migrations remain pending. This ADR describes code in `join_model.py`,
+`relational_pipeline.py`, `relational_core.py`, `join_reference.py`, and
 `join_replay.py`, not a promise of arbitrary SQL support.
 
 ## Decision and obligation
@@ -17,7 +18,8 @@ obligations remain separate.
 The joined workflow keeps the existing guarded SQLGlot admission and typed
 `JoinQuery` in `join_model.py`. Its compatibility adapter compiles admitted
 queries to `RelationalPlan(version=1)` containing `Scan`, `Join`, optional
-`Filter`, and `Aggregate` nodes. The plan records source and output names;
+`Filter`, and `Aggregate` nodes. One guarded aggregate CTE or derived SELECT
+adds a `Materialize` node followed by a second `Aggregate`. The plan records source and output names;
 `Ref(table,column)` was scope- and type-checked by admission. A `Scan` tracks
 the source index, and every node tracks which source tables contribute its
 row slots. The evaluator in `relational_core.py` is now the **only active
@@ -25,8 +27,8 @@ Python bag evaluator** of this joined fragment. `join_reference.py` retains
 finite-world search and a separate DuckDB execution path, not duplicate
 Python SQL semantics. The classic one-table/Z3 and Doppelgänger parsers and
 solvers are deliberately unchanged. The plan is not yet a universal IR: it
-does not expose projected field identity for an aggregate CTE, and it cannot
-represent a second aggregation stage without new typed materialized fields.
+admits only one materialized aggregate source referenced once, not arbitrary
+CTE reuse, correlated subqueries or a third aggregation stage.
 
 The evaluator keeps duplicate row instances. Equality joins do not match
 NULL keys. Outer joins null-extend missing sides without reordering the
@@ -64,9 +66,10 @@ are capped. Source constraints use existing per-table legal-world checks.
    shared bag evaluator -> complete finite NoUndo search -> original-SQL
    DuckDB reference -> serialized replay. This is implemented and regression
    checked against existing joined cases.
-2. Typed materialized output fields and lineage -> aggregate/filter CTE
+2. Scoped materialized output names and types -> one aggregate/filter CTE
    admission -> second aggregate stage -> exhaustive tiny-domain differential
-   tests -> new NoUndo CLI and replay artifacts. **Not yet implemented.**
+   tests -> existing NoUndo CLI and replay artifacts. **Implemented for the
+   guarded two-table pipeline only.** General CTE reuse remains deferred.
 3. Generic N-table legal-world representation and bound -> three-table
    declared join-tree admission/evaluation -> differential oracle. **Not yet
    implemented.** A two-table plan does not imply three-table support.

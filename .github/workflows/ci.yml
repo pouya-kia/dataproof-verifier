@@ -106,5 +106,9 @@ jobs:
           dataproof-verifier join preflight examples/join/monthly_timestamp_distinct.json
           dataproof-verifier join check examples/join/monthly_timestamp_distinct.json --output "$join_tmp/period"
           dataproof-verifier join replay "$join_tmp/period/witness.json"
+          dataproof-verifier join preflight examples/join/aggregate_cte_fanout.json
+          dataproof-verifier join check examples/join/aggregate_cte_fanout.json --output "$join_tmp/aggregate-cte"
+          dataproof-verifier join replay "$join_tmp/aggregate-cte/witness.json"
+          dataproof-verifier join explain "$join_tmp/aggregate-cte/witness.json"
       - name: Dependency consistency
         run: python -m pip check
