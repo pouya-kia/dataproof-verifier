@@ -40,7 +40,7 @@ jobs:
         run: python -m pip install -e ".[dev]"
       - name: Verify installed import and distribution identity
         run: |
-          python -c "import dataproof_verifier; from importlib.metadata import version; assert version('dataproof-verifier') == '0.1.0a2.dev0'"
+          python -c "import dataproof_verifier; from importlib.metadata import version; assert version('dataproof-verifier') == '0.1.0a2'"
           dataproof-verifier --help
       - name: Ruff lint
         run: python -m ruff check .
@@ -61,7 +61,7 @@ jobs:
 
           wheels = list(Path("dist").glob("*.whl"))
           assert len(wheels) == 1, wheels
-          assert wheels[0].name == "dataproof_verifier-0.1.0a2.dev0-py3-none-any.whl"
+          assert wheels[0].name == "dataproof_verifier-0.1.0a2-py3-none-any.whl"
           with ZipFile(wheels[0]) as archive:
               names = archive.namelist()
               metadata_path = next(name for name in names if name.endswith(".dist-info/METADATA"))
@@ -70,7 +70,7 @@ jobs:
               )
               metadata = BytesParser().parsebytes(archive.read(metadata_path))
               assert metadata["Name"] == "dataproof-verifier"
-              assert metadata["Version"] == "0.1.0a2.dev0"
+              assert metadata["Version"] == "0.1.0a2"
               assert "dataproof-verifier = dataproof_verifier.cli:main" in archive.read(
                   entry_points_path
               ).decode()
@@ -80,7 +80,7 @@ jobs:
       - name: Install built Wheel and check CLI
         run: |
           python -m pip install --no-deps --force-reinstall dist/*.whl
-          python -c "import dataproof_verifier; from importlib.metadata import version; assert version('dataproof-verifier') == '0.1.0a2.dev0'"
+          python -c "import dataproof_verifier; from importlib.metadata import version; assert version('dataproof-verifier') == '0.1.0a2'"
           dataproof-verifier --help
       - name: Installed Wheel bounded JOIN replay
         run: |

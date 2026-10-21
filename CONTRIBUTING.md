@@ -1,15 +1,15 @@
 # Contributing to the DataProof Alpha
 
-DataProof v0.1.0a1 is an experimental, bounded SQL tool. The `dataproof-verifier` distribution is available from the [GitHub prerelease](https://github.com/pouya-kia/dataproof-verifier/releases/tag/v0.1.0a1), **not PyPI**. The import is `dataproof_verifier` and the CLI is `dataproof-verifier`. Python 3.11 or 3.12 is supported.
+DataProof is an experimental, bounded SQL tool. The published `v0.1.0a1` distribution is available from the [GitHub prerelease](https://github.com/pouya-kia/dataproof-verifier/releases/tag/v0.1.0a1), **not PyPI**. Current source is a separate, unpublished `0.1.0a2` candidate. The import is `dataproof_verifier` and the CLI is `dataproof-verifier`. Python 3.11 or 3.12 is supported.
 
 ## Set up from the public repository
 
-On Linux or macOS, make sure `python3` is Python 3.11 or 3.12 (`python3 --version`), then run:
+On Linux or macOS, use Python 3.11 or 3.12. Substitute `python3.12` if that is your installed supported interpreter:
 
 ```sh
 git clone https://github.com/pouya-kia/dataproof-verifier.git
 cd dataproof-verifier
-python3 -m venv .venv
+python3.11 -m venv .venv
 .venv/bin/python -m pip install -e ".[dev]"
 .venv/bin/python -m pytest -q
 .venv/bin/python -m ruff check .
