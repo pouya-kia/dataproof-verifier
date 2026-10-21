@@ -8,9 +8,18 @@ The NoUndo limits are:
 - `BOUNDED_NO_COUNTEREXAMPLE` never means universal determinacy. SUM roll-up is not a theorem here; the included daily SUM case is checked only in its finite domain.
 - No PostgreSQL or other engine differential claim, no general dbt integration beyond the narrowly scoped Proof2Test adapter, no production data access, no cloud adapter, no profiler, and no performance benchmark comparison.
 - Replayed synthetic data may still encode user-entered identifiers in a spec. Use only synthetic or approved non-sensitive domains. Artifact directories are user-selected; review them before sharing.
-- Python and DuckDB version changes may affect SQL behavior. The exact tested environment is recorded in each result and CI exercises Linux/macOS on Python 3.11/3.12 once its workflow runs.
+- Python and DuckDB version changes may affect SQL behavior. The exact tested environment is recorded in each result; current public CI exercises Ubuntu with Python 3.11/3.12, not macOS.
 
 The strongest open correctness risks are a SQLGlot AST change not caught by the guard, an SMT/DuckDB mismatch in an untested boundary case, and an untested platform-specific DuckDB behavior. Adversarial, exhaustive and replay tests reduce these risks but do not eliminate them.
+
+An **unreleased, separate** [bounded two-table INNER JOIN check](bounded-join.md)
+is available in development source. It does not extend the published
+`v0.1.0a1` Wheel or the one-table/Z3 command. Its complete finite Python
+search and DuckDB reference are capped at 500 analytical combined worlds;
+they share admission/world-generation assumptions. Deadline checks are
+cooperative, not an OS hard timeout or memory ceiling. Outer joins, filters,
+dbt graphs and unrestricted SQL remain unsupported. No original public task
+has been demonstrated solved unchanged by this addition.
 
 Doppelgänger is a separate, one-dataset workflow. It accepts one synthetic table, one to four named existing-test assertions and one separately supplied invariant, each expressed as a guarded scalar aggregate compared with an integer literal. `NULL`/UNKNOWN is neither a passing test nor a confirmed invariant failure. It does not infer business rules, run arbitrary dbt tests or Python, connect to production, or prove test adequacy from a bounded miss. A supplied rationale is an input assertion, not independently established business truth. See the [exact contract](doppelganger.md).
 

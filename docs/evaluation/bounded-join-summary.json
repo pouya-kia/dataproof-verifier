@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "evaluation_kind": "post-baseline synthetic engineering recheck",
+  "published_baseline": {
+    "release": "v0.1.0a1",
+    "wheel_sha256": "32b3575bdb3acda97ccc5ad9a3ac7ee0adbf02b40f2ce698e518903b782c6b77",
+    "public_origin_total": 50,
+    "eligible_original_unchanged": 0,
+    "original_tasks_independently_solved": 0
+  },
+  "development_source_version": "0.1.0a2.dev0",
+  "originals_after_extension": {
+    "public_origin_total": 50,
+    "unsupported_as_stated": 29,
+    "insufficient_specification": 2,
+    "not_applicable": 19,
+    "eligible_original_unchanged": 0,
+    "original_tasks_independently_solved": 0
+  },
+  "new_synthetic_cases": [
+    {
+      "path": "examples/join/fanout.json",
+      "input_sha256": "b23b7f65895292ea7e6a4dd46855b43fc00953134c423234ef7cfc2d3eca0ebb",
+      "status": "COUNTEREXAMPLE_FOUND",
+      "python_worlds_examined": 14,
+      "duckdb_reference_worlds_examined": 14,
+      "retained_view_bags": [[[7, 2]], [[7, 2]]],
+      "metric_values": [1, 2],
+      "serialized_replay": "REPLAY_OK"
+    },
+    {
+      "path": "examples/join/keyed_negative.json",
+      "input_sha256": "fac7414a12bcf3ebc548c80423935b54ed2e81f786fd4a71cef64ad5412e6838",
+      "status": "BOUNDED_NO_COUNTEREXAMPLE",
+      "python_worlds_examined": 8,
+      "duckdb_reference_worlds_examined": 8,
+      "bounded_exhaustion_complete": true
+    }
+  ],
+  "unchanged_authored_control_rechecks": [
+    {"case_id": "A01", "status": "COUNTEREXAMPLE_FOUND", "replay": "COUNTEREXAMPLE_FOUND"},
+    {"case_id": "A17", "status": "COUNTEREXAMPLE_FOUND", "replay": "COUNTEREXAMPLE_FOUND"},
+    {"case_id": "A21", "status": "BLIND_SPOT_FOUND", "replay": "BLIND_SPOT_FOUND"},
+    {"case_id": "A28", "status": "BLIND_SPOT_FOUND", "replay": "BLIND_SPOT_FOUND"},
+    {"case_id": "A31", "status": "BLIND_SPOT_FOUND", "replay": "BLIND_SPOT_FOUND"}
+  ],
+  "limitations": [
+    "All examples and rechecks here are authored synthetic controls, not original-task success.",
+    "A28 and A31 are post-change rechecks, not reruns of the historical holdout as a blind trial.",
+    "Python and DuckDB evaluators share schema parsing and finite-world enumeration.",
+    "No OS-enforced memory ceiling or hard preemption of one DuckDB call was measured."
+  ]
+}

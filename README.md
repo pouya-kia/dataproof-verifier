@@ -4,6 +4,9 @@ DataProof is an offline, bounded SQL reasoning CLI. It works on small synthetic 
 
 Alpha v0.1.0a1 is publicly available from the [GitHub prerelease](https://github.com/pouya-kia/dataproof-verifier/releases/tag/v0.1.0a1). Distribution: `dataproof-verifier`; import: `dataproof_verifier`; CLI: `dataproof-verifier`. It is **not published on PyPI**; install from this repository or the release Wheel. The unrelated PyPI `dataproof` project is not a dependency.
 
+Current development source is version `0.1.0a2.dev0`; it is **unreleased** and
+is not interchangeable with the `v0.1.0a1` Wheel or its frozen evaluation.
+
 - **NoUndo:** find two legal source bags whose retained aggregate-view bags agree but whose downstream scalar KPIs differ.
 - **Doppelgänger:** find one legal source bag on which declared existing SQL assertions are TRUE while a separately supplied invariant is FALSE.
 - **Proof2Test:** turn a replay-validated Doppelgänger witness and a separately declared target-output contract into a restricted executable regression fixture.
@@ -62,3 +65,7 @@ Open a [bug report](https://github.com/pouya-kia/dataproof-verifier/issues/new?t
 The [DataProof-100 engineering evaluation](docs/evaluation/dataproof-100-evaluation.md)
 reports the Alpha's finite synthetic checks and the unchanged eligibility of
 50 public-origin records, including the negative coverage result.
+
+Unreleased development source also has a separate [bounded two-table INNER JOIN
+check](docs/bounded-join.md) for tiny join-fanout NoUndo obligations. It is
+not in the `v0.1.0a1` Wheel and does not change the Alpha's one-table commands.

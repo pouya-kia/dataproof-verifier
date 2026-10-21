@@ -11,7 +11,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-from dataproof_verifier import doppel_cli, preflight, proof2test
+from dataproof_verifier import doppel_cli, join_cli, preflight, proof2test
 from dataproof_verifier import explain as explanation
 from dataproof_verifier.artifacts import ArtifactConflict, finish, prepare
 from dataproof_verifier.ir import Query
@@ -266,6 +266,20 @@ def main() -> None:
     doppel_replay = doppel_sub.add_parser("replay", help="validate a serialized blind spot")
     doppel_replay.add_argument("witness", type=Path)
     doppel_replay.add_argument("--json", action="store_true")
+    join_parser = sub.add_parser("join", help="complete tiny two-table NoUndo check")
+    join_sub = join_parser.add_subparsers(dest="join_command", required=True)
+    join_preflight = join_sub.add_parser("preflight", help="validate the bounded join contract")
+    join_preflight.add_argument("spec", type=Path)
+    join_preflight.add_argument("--json", action="store_true")
+    join_check = join_sub.add_parser("check", help="search and independently verify a join witness")
+    join_check.add_argument("spec", type=Path)
+    join_check.add_argument("--output", type=Path)
+    join_check.add_argument("--json", action="store_true")
+    join_replay = join_sub.add_parser("replay", help="validate serialized join evidence")
+    join_replay.add_argument("witness", type=Path)
+    join_replay.add_argument("--json", action="store_true")
+    join_explain = join_sub.add_parser("explain", help="explain a replayed join witness")
+    join_explain.add_argument("witness", type=Path)
     proof_parser = sub.add_parser("proof2test", help="export a validated regression fixture")
     proof_sub = proof_parser.add_subparsers(dest="proof_command", required=True)
     proof_export = proof_sub.add_parser("export")
@@ -285,6 +299,15 @@ def main() -> None:
             code = doppel_cli.check(args.spec, args.output, args.json)
         else:
             code = doppel_cli.replay(args.witness, args.json)
+    elif args.command == "join":
+        if args.join_command == "preflight":
+            code = join_cli.preflight(args.spec, args.json)
+        elif args.join_command == "check":
+            code = join_cli.check(args.spec, args.output, args.json)
+        elif args.join_command == "explain":
+            code = join_cli.explain_witness(args.witness)
+        else:
+            code = join_cli.replay_witness(args.witness, args.json)
     elif args.command == "proof2test":
         code = export_test(args.witness, args.target, args.format, args.output)
     else:
