@@ -45,6 +45,8 @@ def _literal(value: Any) -> str:
         return f"DATE '{value.isoformat()}'"
     if type(value) is int:
         return str(value)
+    if isinstance(value, str):
+        return "'" + value.replace("'", "''") + "'"
     raise ValueError("unsupported synthetic value")
 
 
@@ -60,7 +62,8 @@ def _create_table(spec: Spec) -> str:
         if col.nullable:
             domain = f"({_quoted(col.name)} IS NULL OR {domain})"
         columns.append(
-            f"{_quoted(col.name)} {col.type} {'' if col.nullable else 'NOT NULL '}CHECK ({domain})"
+            f"{_quoted(col.name)} {'VARCHAR' if col.type == 'STRING' else col.type} "
+            f"{'' if col.nullable else 'NOT NULL '}CHECK ({domain})"
         )
     if spec.primary_key:
         columns.append(f"PRIMARY KEY ({', '.join(_quoted(x) for x in spec.primary_key)})")
@@ -153,6 +156,8 @@ def _rows(raw: Any, spec: Spec) -> tuple[Row, ...]:
             elif col.type == "DATE" and isinstance(value, str):
                 converted.append(date.fromisoformat(value))
             elif col.type == "INTEGER" and type(value) is int:
+                converted.append(value)
+            elif col.type == "STRING" and isinstance(value, str):
                 converted.append(value)
             else:
                 raise ValueError("invalid serialized value type")

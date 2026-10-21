@@ -11,7 +11,7 @@ from typing import Any
 
 import yaml
 
-Value = int | date | None
+Value = int | date | str | None
 Row = tuple[Value, ...]
 _NAME = re.compile(r"[A-Za-z_][A-Za-z_0-9]*\Z")
 
@@ -85,10 +85,15 @@ def _value(raw: Any, typ: str) -> Value:
                 return parsed
         except ValueError:
             pass
+    # The finite join backend admits only a deliberately small ASCII/binary
+    # string domain. Other workflows never opt in to this type.
+    if typ == "STRING" and isinstance(raw, str):
+        if 1 <= len(raw) <= 32 and all(32 <= ord(char) <= 126 for char in raw):
+            return raw
     raise SpecError(f"invalid {typ} domain value: {raw!r}")
 
 
-def parse_spec(raw: Any, source: Path | None = None) -> Spec:
+def parse_spec(raw: Any, source: Path | None = None, *, allow_string: bool = False) -> Spec:
     if not isinstance(raw, dict):
         raise SpecError("spec must be a mapping")
     _keys(
@@ -122,8 +127,10 @@ def parse_spec(raw: Any, source: Path | None = None) -> Spec:
         _keys(item, {"name", "type", "nullable", "domain"}, "column")
         name = _name(item.get("name"), "column name")
         typ = item.get("type")
-        if typ not in ("INTEGER", "DATE"):
+        allowed_types = ("INTEGER", "DATE", "STRING") if allow_string else ("INTEGER", "DATE")
+        if typ not in allowed_types:
             raise UnsupportedError(f"unsupported column type: {typ!r}")
+        assert isinstance(typ, str)
         nullable = item.get("nullable", False)
         if type(nullable) is not bool:
             raise SpecError("nullable must be boolean")

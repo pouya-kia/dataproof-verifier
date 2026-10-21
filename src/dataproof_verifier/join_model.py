@@ -40,7 +40,14 @@ class Ref:
 @dataclass(frozen=True)
 class JoinAggregate:
     kind: str
-    ref: Ref | None
+    value: JoinScalar | None
+
+
+@dataclass(frozen=True)
+class JoinScalar:
+    kind: str
+    typ: str
+    args: tuple[Any, ...]
 
 
 @dataclass(frozen=True)
@@ -53,7 +60,7 @@ class JoinProjection:
 @dataclass(frozen=True)
 class JoinPredicate:
     op: str
-    operands: tuple[Ref | int | JoinPredicate, ...]
+    operands: tuple[Ref | int | str | JoinPredicate, ...]
 
 
 @dataclass(frozen=True)
@@ -107,7 +114,8 @@ def parse_join_spec(raw: Any, source: Path | None = None) -> JoinSpec:
                 "views": ["SELECT 1"],
                 "metric": "SELECT 1",
                 "max_rows": max_rows,
-            }
+            },
+            allow_string=True,
         )
         _simple(table.table, "table name")
         if len(table.columns) > 3:
@@ -199,6 +207,109 @@ def _ref(node: exp.Expression, spec: JoinSpec, aliases: tuple[str, str]) -> Ref:
     return Ref(index, name)
 
 
+def _scalar(node: exp.Expression, spec: JoinSpec, aliases: tuple[str, str]) -> JoinScalar:
+    if isinstance(node, exp.Paren):
+        return _scalar(node.this, spec, aliases)
+    if isinstance(node, exp.Column):
+        ref = _ref(node, spec, aliases)
+        return JoinScalar("ref", spec.tables[ref.table].column(ref.column).type, (ref,))
+    if isinstance(node, exp.Null):
+        return JoinScalar("null", "NULL", ())
+    if isinstance(node, (exp.Literal, exp.Neg)):
+        value = _operand(node, spec, aliases)
+        if isinstance(value, Ref):
+            raise AssertionError("literal parser returned a column")
+        return JoinScalar("literal", "INTEGER" if type(value) is int else "STRING", (value,))
+    if isinstance(node, (exp.Add, exp.Sub)):
+        left = _scalar(node.this, spec, aliases)
+        right = _scalar(node.expression, spec, aliases)
+        if left.typ != "INTEGER" or right.typ != "INTEGER":
+            raise UnsupportedError("arithmetic requires two INTEGER operands")
+        result = JoinScalar("add" if isinstance(node, exp.Add) else "sub", "INTEGER", (left, right))
+        low, high = _int_limits(result, spec)
+        if low < -(2**31) or high >= 2**31:
+            raise UnsupportedError("integer arithmetic may overflow the 32-bit domain")
+        return result
+    if isinstance(node, exp.Cast):
+        if type(node) is not exp.Cast:
+            raise UnsupportedError("only strict CAST is supported")
+        if any(value for key, value in node.args.items() if key not in {"this", "to"}):
+            raise UnsupportedError("unsupported CAST option")
+        child = _scalar(node.this, spec, aliases)
+        target = node.args.get("to")
+        if not isinstance(target, exp.DataType):
+            raise UnsupportedError("CAST target must be an admitted type")
+        if (
+            target.this != exp.DataType.Type.INT
+            or target.args.get("expressions") is not None
+            or target.args.get("nested") not in {None, False}
+        ):
+            raise UnsupportedError("only identity CAST(... AS INTEGER) is supported")
+        if child.typ != "INTEGER":
+            raise UnsupportedError("CAST may not coerce between types")
+        return JoinScalar("identity_cast", "INTEGER", (child,))
+    if isinstance(node, exp.Case):
+        if any(value for key, value in node.args.items() if key not in {"this", "ifs", "default"}):
+            raise UnsupportedError("unsupported CASE option")
+        base = _scalar(node.this, spec, aliases) if node.this is not None else None
+        if base is not None and base.typ not in {"INTEGER", "STRING"}:
+            raise UnsupportedError("simple CASE base type is unsupported")
+        arms: list[tuple[JoinPredicate | JoinScalar, JoinScalar]] = []
+        for arm in node.args.get("ifs") or []:
+            if not isinstance(arm, exp.If):
+                raise UnsupportedError("unsupported CASE arm")
+            if any(value for key, value in arm.args.items() if key not in {"this", "true"}):
+                raise UnsupportedError("unsupported CASE arm option")
+            condition: JoinPredicate | JoinScalar
+            if base is None:
+                condition = _predicate(arm.this, spec, aliases)
+            else:
+                condition = _scalar(arm.this, spec, aliases)
+                if condition.typ != base.typ:
+                    raise UnsupportedError("simple CASE types do not match")
+            result = _scalar(arm.args["true"], spec, aliases)
+            arms.append((condition, result))
+        if not 1 <= len(arms) <= 3:
+            raise UnsupportedError("CASE requires one to three WHEN arms")
+        default = (
+            _scalar(node.args["default"], spec, aliases)
+            if node.args.get("default") is not None
+            else JoinScalar("null", "NULL", ())
+        )
+        types = {result.typ for _, result in arms} | {default.typ}
+        types.discard("NULL")
+        if len(types) != 1 or not types <= {"INTEGER", "STRING"}:
+            raise UnsupportedError("CASE branches must share INTEGER or STRING type")
+        return JoinScalar("case", types.pop(), (base, tuple(arms), default))
+    raise UnsupportedError(f"unsupported scalar expression: {type(node).__name__}")
+
+
+def _int_limits(value: JoinScalar, spec: JoinSpec) -> tuple[int, int]:
+    if value.kind == "literal":
+        item = value.args[0]
+        assert type(item) is int
+        return item, item
+    if value.kind == "ref":
+        ref = value.args[0]
+        assert isinstance(ref, Ref)
+        domain = spec.tables[ref.table].column(ref.column).domain
+        values = [item for item in domain if type(item) is int]
+        assert len(values) == sum(item is not None for item in domain)
+        return (min(values), max(values)) if values else (0, 0)
+    if value.kind == "identity_cast":
+        return _int_limits(value.args[0], spec)
+    if value.kind in {"add", "sub"}:
+        a, b = (_int_limits(child, spec) for child in value.args)
+        return (a[0] + b[0], a[1] + b[1]) if value.kind == "add" else (a[0] - b[1], a[1] - b[0])
+    if value.kind == "case":
+        _, arms, default = value.args
+        limits = [_int_limits(item, spec) for _, item in arms if item.typ == "INTEGER"]
+        if default.typ == "INTEGER":
+            limits.append(_int_limits(default, spec))
+        return min(low for low, _ in limits), max(high for _, high in limits)
+    raise UnsupportedError("unsupported integer bound expression")
+
+
 def _aggregate(node: exp.Expression, spec: JoinSpec, aliases: tuple[str, str]) -> JoinAggregate:
     if isinstance(node, exp.Count):
         if node.expressions or any(
@@ -209,21 +320,29 @@ def _aggregate(node: exp.Expression, spec: JoinSpec, aliases: tuple[str, str]) -
         if isinstance(arg, exp.Star) and not any(arg.args.values()):
             return JoinAggregate("count_star", None)
         if isinstance(arg, exp.Distinct) and len(arg.expressions) == 1:
-            return JoinAggregate("count_distinct", _ref(arg.expressions[0], spec, aliases))
-        return JoinAggregate("count", _ref(arg, spec, aliases))
+            return JoinAggregate("count_distinct", _scalar(arg.expressions[0], spec, aliases))
+        return JoinAggregate("count", _scalar(arg, spec, aliases))
     if isinstance(node, (exp.Sum, exp.Min, exp.Max)) and node.this is not None:
         if any(value for key, value in node.args.items() if key != "this"):
             raise UnsupportedError("numeric aggregate has unsupported arguments")
-        ref = _ref(node.this, spec, aliases)
-        if spec.tables[ref.table].column(ref.column).type != "INTEGER":
+        value = _scalar(node.this, spec, aliases)
+        if value.typ != "INTEGER":
             raise UnsupportedError("numeric aggregate requires INTEGER")
-        return JoinAggregate(type(node).__name__.lower(), ref)
+        return JoinAggregate(type(node).__name__.lower(), value)
     raise UnsupportedError(f"unsupported expression: {type(node).__name__}")
 
 
-def _operand(node: exp.Expression, spec: JoinSpec, aliases: tuple[str, str]) -> Ref | int:
+def _operand(node: exp.Expression, spec: JoinSpec, aliases: tuple[str, str]) -> Ref | int | str:
     if isinstance(node, exp.Column):
         return _ref(node, spec, aliases)
+    if isinstance(node, exp.Literal) and node.is_string:
+        value = node.this
+        if (
+            isinstance(value, str)
+            and 1 <= len(value) <= 32
+            and all(32 <= ord(char) <= 126 for char in value)
+        ):
+            return value
     if isinstance(node, exp.Literal) and not node.is_string and node.this.isdigit():
         value = int(node.this)
         if value < 2**31:
@@ -234,7 +353,7 @@ def _operand(node: exp.Expression, spec: JoinSpec, aliases: tuple[str, str]) -> 
             value = -int(literal.this)
             if -(2**31) <= value:
                 return value
-    raise UnsupportedError("WHERE operands must be direct columns or signed 32-bit integers")
+    raise UnsupportedError("WHERE operands must be direct columns or finite typed literals")
 
 
 def _predicate(node: exp.Expression, spec: JoinSpec, aliases: tuple[str, str]) -> JoinPredicate:
@@ -261,17 +380,28 @@ def _predicate(node: exp.Expression, spec: JoinSpec, aliases: tuple[str, str]) -
         if isinstance(node, kind):
             left = _operand(node.this, spec, aliases)
             right = _operand(node.expression, spec, aliases)
-            if isinstance(left, int) and isinstance(right, int):
+            if not isinstance(left, Ref) and not isinstance(right, Ref):
                 raise UnsupportedError("WHERE comparison needs a source column")
             types = {
                 spec.tables[item.table].column(item.column).type
                 for item in (left, right)
                 if isinstance(item, Ref)
             }
-            if len(types) != 1 or (
-                "DATE" in types and (isinstance(left, int) or isinstance(right, int))
+            if len(types) != 1:
+                raise UnsupportedError("WHERE comparison operands have incompatible types")
+            typ = next(iter(types))
+            if any(
+                not isinstance(item, Ref)
+                and (
+                    (typ == "INTEGER" and type(item) is not int)
+                    or (typ == "DATE")
+                    or (typ == "STRING" and type(item) is not str)
+                )
+                for item in (left, right)
             ):
                 raise UnsupportedError("WHERE comparison operands have incompatible types")
+            if typ == "STRING" and op not in {"eq", "neq"}:
+                raise UnsupportedError("STRING supports only binary equality and inequality")
             return JoinPredicate(op, (left, right))
     raise UnsupportedError(f"unsupported WHERE predicate: {type(node).__name__}")
 

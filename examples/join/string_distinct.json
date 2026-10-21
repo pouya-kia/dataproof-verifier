@@ -1,0 +1,22 @@
+{
+  "tables": [
+    {
+      "name": "orders",
+      "max_rows": 2,
+      "columns": [
+        {"name": "k", "type": "INTEGER", "domain": [1]},
+        {"name": "label", "type": "STRING", "nullable": true, "domain": ["a", "b"]}
+      ]
+    },
+    {
+      "name": "customers",
+      "max_rows": 1,
+      "columns": [
+        {"name": "k", "type": "INTEGER", "domain": [1]},
+        {"name": "name", "type": "STRING", "domain": ["O'Brien"]}
+      ]
+    }
+  ],
+  "view": "SELECT o.k AS k, COUNT(*) AS n FROM orders AS o INNER JOIN customers AS c ON o.k = c.k GROUP BY o.k",
+  "metric": "SELECT COUNT(DISTINCT o.label) AS n FROM orders AS o INNER JOIN customers AS c ON o.k = c.k"
+}

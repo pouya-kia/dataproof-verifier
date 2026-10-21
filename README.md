@@ -1,10 +1,10 @@
-# DataProof — experimental Alpha (v0.1.0a2 source candidate)
+# DataProof — experimental Alpha (v0.1.0a3.dev0 development source)
 
 DataProof is an offline, bounded SQL reasoning CLI. It works on small synthetic tables, not production databases. Its three workflows are distinct:
 
 Alpha v0.1.0a1 is publicly available from the [GitHub prerelease](https://github.com/pouya-kia/dataproof-verifier/releases/tag/v0.1.0a1). Distribution: `dataproof-verifier`; import: `dataproof_verifier`; CLI: `dataproof-verifier`. It is **not published on PyPI**; install from this repository or the release Wheel. The unrelated PyPI `dataproof` project is not a dependency.
 
-Current source is a locally and CI-tested `0.1.0a2` **release candidate**, not
+Current source is an in-progress `0.1.0a3.dev0` **development branch**, not
 yet a tagged GitHub release or PyPI publication. The published `v0.1.0a1`
 Wheel and its frozen evaluation are unchanged.
 
@@ -60,13 +60,17 @@ One source table, at most three rows per world, at most four columns and four de
 
 The CLI records assumptions, bounds, versions, hashes, witnesses, and replay artifacts. Reused output directories only clear unchanged DataProof-owned artifacts; unrelated files are preserved. Use separate directories for concurrent runs. See [artifact behavior](docs/limitations.md) and the demo. Scientific research scripts, raw runs, and manuscripts are not distributed in this source candidate.
 
-The `0.1.0a2` source candidate additionally has a **separate** [bounded
+This development source additionally has a **separate** [bounded
 two-table INNER/LEFT JOIN workflow](docs/bounded-join.md): at most two rows per
 source, three columns and three effective domain values per column, and 500
 analytical combined worlds. It supports guarded three-valued WHERE predicates
 and at most two direct grouping columns. It uses complete finite Python search
 plus an independent DuckDB SQL reference, **not** the one-table Z3 encoding.
-It does not imply broad join, dbt, CTE, string, window, or incremental support.
+It now admits restricted finite ASCII STRING equality/grouping and guarded
+CASE/integer expressions in that separate join workflow only. It does not imply
+broad join, dbt, CTE, unrestricted string, window, or incremental support.
+The [Wave A engineering record](docs/evaluation/sql-coverage-wave-a.md) keeps
+the original-task result at 0/50 and distinguishes these finite synthetic checks.
 For example, after installation:
 
 ```sh
@@ -88,4 +92,4 @@ reports the Alpha's finite synthetic checks and the unchanged eligibility of
 The [final post-change DataProof-100 comparison](docs/evaluation/dataproof-100-final-coverage.md)
 retains all 50 original public-origin problems and 50 synthetic controls. It
 does not claim that any original public-origin task was fully solved by the
-new candidate syntax. The `v0.1.0a1` release remains available separately.
+earlier `0.1.0a2` candidate syntax. The `v0.1.0a1` release remains available separately.
