@@ -1,0 +1,22 @@
+{
+  "tables": [
+    {
+      "name": "orders",
+      "max_rows": 2,
+      "columns": [
+        {"name": "id", "type": "INTEGER", "domain": [1, 2]},
+        {"name": "cid", "type": "INTEGER", "domain": [1]},
+        {"name": "ts", "type": "TIMESTAMP", "nullable": true, "domain": ["2026-01-31T23:59:59", "2026-02-01T00:00:00"]}
+      ]
+    },
+    {
+      "name": "customers",
+      "max_rows": 1,
+      "columns": [
+        {"name": "cid", "type": "INTEGER", "domain": [1]}
+      ]
+    }
+  ],
+  "view": "SELECT DATE_TRUNC('month', o.ts) AS period, COUNT(*) AS n FROM orders AS o INNER JOIN customers AS c ON o.cid = c.cid GROUP BY DATE_TRUNC('month', o.ts)",
+  "metric": "SELECT COUNT(DISTINCT o.id) AS distinct_orders FROM orders AS o INNER JOIN customers AS c ON o.cid = c.cid"
+}

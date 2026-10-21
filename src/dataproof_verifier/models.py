@@ -5,13 +5,13 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-Value = int | date | str | None
+Value = int | date | datetime | str | None
 Row = tuple[Value, ...]
 _NAME = re.compile(r"[A-Za-z_][A-Za-z_0-9]*\Z")
 
@@ -85,6 +85,16 @@ def _value(raw: Any, typ: str) -> Value:
                 return parsed
         except ValueError:
             pass
+    # Only the separate finite join backend opts into UTC-naive second-precision
+    # timestamps. No offsets, ambiguous local times or implicit conversions.
+    if typ == "TIMESTAMP" and isinstance(raw, str):
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}", raw):
+            try:
+                parsed_time = datetime.fromisoformat(raw)
+                if parsed_time.isoformat(timespec="seconds") == raw:
+                    return parsed_time
+            except ValueError:
+                pass
     # The finite join backend admits only a deliberately small ASCII/binary
     # string domain. Other workflows never opt in to this type.
     if typ == "STRING" and isinstance(raw, str):
@@ -93,7 +103,13 @@ def _value(raw: Any, typ: str) -> Value:
     raise SpecError(f"invalid {typ} domain value: {raw!r}")
 
 
-def parse_spec(raw: Any, source: Path | None = None, *, allow_string: bool = False) -> Spec:
+def parse_spec(
+    raw: Any,
+    source: Path | None = None,
+    *,
+    allow_string: bool = False,
+    allow_timestamp: bool = False,
+) -> Spec:
     if not isinstance(raw, dict):
         raise SpecError("spec must be a mapping")
     _keys(
@@ -127,7 +143,11 @@ def parse_spec(raw: Any, source: Path | None = None, *, allow_string: bool = Fal
         _keys(item, {"name", "type", "nullable", "domain"}, "column")
         name = _name(item.get("name"), "column name")
         typ = item.get("type")
-        allowed_types = ("INTEGER", "DATE", "STRING") if allow_string else ("INTEGER", "DATE")
+        allowed_types = ["INTEGER", "DATE"]
+        if allow_string:
+            allowed_types.append("STRING")
+        if allow_timestamp:
+            allowed_types.append("TIMESTAMP")
         if typ not in allowed_types:
             raise UnsupportedError(f"unsupported column type: {typ!r}")
         assert isinstance(typ, str)
