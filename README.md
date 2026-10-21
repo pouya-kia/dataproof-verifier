@@ -54,7 +54,7 @@ DATAPROOF_TARGET_SQL=examples/proof2test/defective.sql .venv/bin/pytest -q artif
 DATAPROOF_TARGET_SQL=examples/proof2test/corrected.sql .venv/bin/pytest -q artifacts/proof2test
 ```
 
-The defective model must fail the generated assertion; the corrected one must pass. A narrowly scoped dbt Core unit-test YAML adapter also exists; arbitrary dbt projects are unsupported. See the complete [offline demo](docs/demo.md), [preflight](docs/preflight.md), [explanation](docs/explain.md), [Doppelgänger](docs/doppelganger.md), and [Proof2Test](docs/proof2test.md) contracts.
+The defective model must fail the generated assertion; the corrected one must pass. A narrowly scoped dbt Core unit-test YAML adapter also exists; arbitrary dbt projects are unsupported. See the complete [offline demo](docs/demo.md), [preflight](docs/preflight.md), [explanation](docs/explain.md), [Doppelgänger](docs/doppelganger.md), and [Proof2Test](docs/proof2test.md) contracts. The [adversarial testing guide](docs/adversarial-testing.md) describes the finite differential and mutation checks.
 
 ## Published v0.1.0a1 one-table finite scope
 
