@@ -66,7 +66,7 @@ class JoinPredicate:
 @dataclass(frozen=True)
 class JoinQuery:
     join_kind: str
-    on: tuple[Ref, Ref]
+    on: tuple[tuple[Ref, Ref], ...]
     group_by: tuple[Ref, ...]
     where: JoinPredicate | None
     projections: tuple[JoinProjection, ...]
@@ -431,12 +431,13 @@ def parse_join_query(sql: str, spec: JoinSpec, *, metric: bool) -> JoinQuery:
     join = joins[0]
     if not isinstance(join, exp.Join):
         raise UnsupportedError("only explicit INNER or LEFT JOIN is supported")
-    if join.args.get("side") == "LEFT" and join.args.get("kind") in {None, "OUTER"}:
-        join_kind = "left"
-    elif join.args.get("kind") == "INNER" and not join.args.get("side"):
+    side, kind = join.args.get("side"), join.args.get("kind")
+    if side in {"LEFT", "RIGHT", "FULL"} and kind in {None, "OUTER"}:
+        join_kind = side.lower()
+    elif kind == "INNER" and not side:
         join_kind = "inner"
     else:
-        raise UnsupportedError("only explicit INNER or LEFT JOIN is supported")
+        raise UnsupportedError("only explicit INNER, LEFT, RIGHT or FULL JOIN is supported")
     if any(value for key, value in join.args.items() if key not in {"this", "kind", "side", "on"}):
         raise UnsupportedError("unsupported JOIN option")
     aliases = (
@@ -446,19 +447,40 @@ def parse_join_query(sql: str, spec: JoinSpec, *, metric: bool) -> JoinQuery:
     if aliases[0] == aliases[1]:
         raise UnsupportedError("table aliases must differ")
     on = join.args.get("on")
-    if not isinstance(on, exp.EQ):
-        raise UnsupportedError("JOIN ON must be one direct equality")
-    left = _ref(on.this, spec, aliases)
-    right = _ref(on.expression, spec, aliases)
-    if {left.table, right.table} != {0, 1}:
-        raise UnsupportedError("JOIN must equate one column from each table")
-    if (
-        spec.tables[left.table].column(left.column).type
-        != spec.tables[right.table].column(right.column).type
-    ):
-        raise UnsupportedError("JOIN key types must match")
-    if left.table == 1:
-        left, right = right, left
+    conditions: list[exp.Expression] = []
+
+    def flatten_equalities(item: exp.Expression) -> None:
+        if isinstance(item, exp.And):
+            flatten_equalities(item.this)
+            flatten_equalities(item.expression)
+        else:
+            conditions.append(item)
+
+    if not isinstance(on, exp.Expression):
+        raise UnsupportedError("JOIN ON requires direct equality keys")
+    flatten_equalities(on)
+    if not 1 <= len(conditions) <= 2:
+        raise UnsupportedError("JOIN ON requires one or two equality keys")
+    keys: list[tuple[Ref, Ref]] = []
+    for on_condition in conditions:
+        if not isinstance(on_condition, exp.EQ):
+            raise UnsupportedError("JOIN ON requires only direct equality keys")
+        if not isinstance(on_condition.this, exp.Column) or not isinstance(
+            on_condition.expression, exp.Column
+        ):
+            raise UnsupportedError("JOIN ON requires direct column equalities")
+        left = _ref(on_condition.this, spec, aliases)
+        right = _ref(on_condition.expression, spec, aliases)
+        if {left.table, right.table} != {0, 1}:
+            raise UnsupportedError("JOIN key must equate one column from each table")
+        if (
+            spec.tables[left.table].column(left.column).type
+            != spec.tables[right.table].column(right.column).type
+        ):
+            raise UnsupportedError("JOIN key types must match")
+        keys.append((left, right) if left.table == 0 else (right, left))
+    if len(set(keys)) != len(keys):
+        raise UnsupportedError("JOIN key equalities must be distinct")
     group = node.args.get("group")
     group_refs: tuple[Ref, ...] = ()
     if group is not None:
@@ -476,7 +498,7 @@ def parse_join_query(sql: str, spec: JoinSpec, *, metric: bool) -> JoinQuery:
     where = node.args.get("where")
     if where is not None and not isinstance(where, exp.Where):
         raise UnsupportedError("invalid WHERE clause")
-    condition = _predicate(where.this, spec, aliases) if where is not None else None
+    where_condition = _predicate(where.this, spec, aliases) if where is not None else None
     projections: list[JoinProjection] = []
     for expression in node.expressions:
         actual = expression.this if isinstance(expression, exp.Alias) else expression
@@ -506,7 +528,7 @@ def parse_join_query(sql: str, spec: JoinSpec, *, metric: bool) -> JoinQuery:
         or not any(p.aggregate is not None for p in projections)
     ):
         raise UnsupportedError("view needs every grouping column once and an aggregate")
-    return JoinQuery(join_kind, (left, right), group_refs, condition, tuple(projections))
+    return JoinQuery(join_kind, tuple(keys), group_refs, where_condition, tuple(projections))
 
 
 def all_join_worlds(spec: JoinSpec) -> list[World]:

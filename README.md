@@ -61,7 +61,7 @@ One source table, at most three rows per world, at most four columns and four de
 The CLI records assumptions, bounds, versions, hashes, witnesses, and replay artifacts. Reused output directories only clear unchanged DataProof-owned artifacts; unrelated files are preserved. Use separate directories for concurrent runs. See [artifact behavior](docs/limitations.md) and the demo. Scientific research scripts, raw runs, and manuscripts are not distributed in this source candidate.
 
 This development source additionally has a **separate** [bounded
-two-table INNER/LEFT JOIN workflow](docs/bounded-join.md): at most two rows per
+two-table equijoin workflow](docs/bounded-join.md): at most two rows per
 source, three columns and three effective domain values per column, and 500
 analytical combined worlds. It supports guarded three-valued WHERE predicates
 and at most two direct grouping columns. It uses complete finite Python search
@@ -69,14 +69,19 @@ plus an independent DuckDB SQL reference, **not** the one-table Z3 encoding.
 It now admits restricted finite ASCII STRING equality/grouping and guarded
 CASE/integer expressions in that separate join workflow only. It does not imply
 broad join, dbt, CTE, unrestricted string, window, or incremental support.
+The finite join path also admits one or two direct equality keys and
+INNER/LEFT/RIGHT/FULL null-extension semantics; three-table joins remain unsupported.
 The [Wave A engineering record](docs/evaluation/sql-coverage-wave-a.md) keeps
 the original-task result at 0/50 and distinguishes these finite synthetic checks.
+The [Wave B engineering record](docs/evaluation/sql-coverage-wave-b.md) covers
+composite keys and outer-join null extension without a three-table claim.
 For example, after installation:
 
 ```sh
 .venv/bin/dataproof-verifier join preflight examples/join/left_missing_match.json
 .venv/bin/dataproof-verifier join check examples/join/left_missing_match.json --output artifacts/left-join
 .venv/bin/dataproof-verifier join replay artifacts/left-join/witness.json
+.venv/bin/dataproof-verifier join preflight examples/join/right_missing_match.json
 ```
 
 ## Contribute or report a problem

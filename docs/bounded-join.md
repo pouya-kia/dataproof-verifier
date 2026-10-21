@@ -2,7 +2,7 @@
 
 This is a separate NoUndo workflow for one narrow Data Engineering question:
 can two legal tiny databases produce the **same retained grouped aggregate
-bag** over a restricted inner or left join but different values for a scalar downstream KPI? It is
+bag** over a restricted equijoin but different values for a scalar downstream KPI? It is
 motivated by repeated join-cardinality/fanout blockers in the
 [DataProof-100 evaluation](evaluation/dataproof-100-evaluation.md). It does
 **not** run the original multi-model dbt or BI tasks in that intake. The
@@ -37,12 +37,14 @@ and creates only a result record, not a witness.
   validator. There are no foreign keys.
 - Exactly one retained grouped query and one scalar metric query. Both are
   DuckDB `SELECT` statements reading the two declared tables with explicit,
-  distinct aliases and **one explicit INNER or LEFT [OUTER] JOIN** on equality of direct,
-  alias-qualified columns of the same declared type. NULL join keys do not
-  match. LEFT JOIN preserves each unmatched left bag row with a NULL-generated
-  right tuple; genuine right-column NULL and missing-match NULL cannot be
-  distinguished by a projected right cell alone. The view and metric may choose
-  INNER or LEFT independently. Neither query has a CTE, additional join, derived source,
+  distinct aliases and **one explicit INNER, LEFT, RIGHT, or FULL [OUTER] JOIN**
+  on one or two distinct equalities of direct, alias-qualified columns of the
+  same declared type, with one column from each source per equality. NULL
+  join keys do not match. LEFT/RIGHT/FULL preserve unmatched bag-row instances
+  with a NULL-generated tuple on the missing side. Duplicate source rows remain
+  duplicate joined rows; genuine NULL and missing-match NULL may have the same
+  projected value. The view and metric may choose join forms independently.
+  Neither query has a CTE, additional join, derived source,
   or any other clause except an optional restricted `WHERE` and the view's
   one or two direct, distinct `GROUP BY` columns. Each query may use its own
   `WHERE`. Admitted predicates combine `AND`, `OR`, `NOT`, parentheses,
@@ -75,9 +77,10 @@ and creates only a result record, not a witness.
   SQL grouping treats each NULL group-key component as one group; empty grouped output is
   an empty bag. Scalar `COUNT` of empty join output is 0, while `SUM`/extrema
   are NULL. With LEFT JOIN, `COUNT(*)` includes unmatched left rows whereas
-  `COUNT(right_column)` does not. A `WHERE` condition is applied **after**
-  null-extension; an `ON` condition beyond the one admitted equality is
-  rejected, not moved to `WHERE`. Output-column order matters; output-row order does not.
+  `COUNT(right_column)` does not. RIGHT/FULL follow the symmetric unmatched-row
+  rules. A `WHERE` condition is applied **after** null-extension; `ON` accepts
+  only the one or two direct equalities, not arbitrary predicates or a rewritten
+  `WHERE`. Output-column order matters; output-row order does not.
 - The analytical upper bound on **combined** two-table legal worlds must be
   at most 500, computed before key filtering. This conservative cap may
   reject a constrained schema with fewer actual worlds. Two databases are
@@ -120,8 +123,9 @@ the declared retained summary is all that remains. The new synthetic
 the same grouped `COUNT(*)` while `COUNT(c.cid)` differs. Neither example
 establishes that raw data were deleted in any external workflow.
 
-Unsupported forms fail closed: implicit/comma/cross/right/full/semi/anti joins,
-multiple joins or retained views, compound `ON`, unsupported string expressions,
+Unsupported forms fail closed: implicit/comma/cross/semi/anti joins,
+multiple joins or retained views, non-equality `ON`, more than two join keys,
+unsupported string expressions,
 more than two grouping columns, `HAVING`, windows, `ORDER BY`, subqueries,
 CTEs, arbitrary SQL dialects, writes, UDFs, production database access and
 dbt model graphs. The existing one-table NoUndo, Doppelgänger and Proof2Test

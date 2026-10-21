@@ -105,7 +105,7 @@ def test_symlink_output_is_rejected_without_following_it(tmp_path: Path) -> None
 
 def test_preflight_rejects_unsupported_and_invalid_without_artifacts(tmp_path: Path) -> None:
     raw = _raw()
-    raw["view"] = str(raw["view"]).replace("INNER JOIN", "RIGHT JOIN")
+    raw["view"] = str(raw["view"]).replace("INNER JOIN", "CROSS JOIN")
     unsupported = _file(tmp_path, raw)
     assert join_cli.preflight(unsupported, True) == 5
     assert join_cli.check(unsupported, tmp_path / "unsupported-out", True) == 5
@@ -226,7 +226,7 @@ def test_backend_error_and_timeout_are_durable(
 @pytest.mark.parametrize(
     "sql",
     [
-        f"{SELECT} FROM orders AS o RIGHT JOIN customers AS c ON o.cid = c.cid GROUP BY o.cid",
+        f"{SELECT} FROM orders AS o CROSS JOIN customers AS c ON o.cid = c.cid GROUP BY o.cid",
         f"{SELECT} FROM orders AS o JOIN customers AS c ON o.cid = c.cid GROUP BY o.cid",
         f"{SELECT} {INNER} WHERE ABS(o.id) = 1 GROUP BY o.cid",
         f"{SELECT} {INNER} OR o.id = c.cid GROUP BY o.cid",

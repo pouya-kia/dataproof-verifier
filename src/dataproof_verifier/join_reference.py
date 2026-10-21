@@ -145,16 +145,27 @@ def _truth(
 def evaluate_python(query: JoinQuery, spec: JoinSpec, world: World) -> tuple[tuple[Any, ...], ...]:
     joined: list[tuple[tuple[Any, ...], tuple[Any, ...]]] = []
     null_right = (None,) * len(spec.tables[1].columns)
+    null_left = (None,) * len(spec.tables[0].columns)
+    matched_right: set[int] = set()
     for left in world[0]:
-        matches = [
-            (left, right)
-            for right in world[1]
-            if _value(query.on[0], (left, right), spec) is not None
-            and _value(query.on[0], (left, right), spec) == _value(query.on[1], (left, right), spec)
-        ]
-        joined.extend(matches)
-        if not matches and query.join_kind == "left":
+        matched = False
+        for index, right in enumerate(world[1]):
+            pair = (left, right)
+            if all(
+                _value(left_key, pair, spec) is not None
+                and _value(right_key, pair, spec) is not None
+                and _value(left_key, pair, spec) == _value(right_key, pair, spec)
+                for left_key, right_key in query.on
+            ):
+                joined.append(pair)
+                matched_right.add(index)
+                matched = True
+        if not matched and query.join_kind in {"left", "full"}:
             joined.append((left, null_right))
+    if query.join_kind in {"right", "full"}:
+        joined.extend(
+            (null_left, right) for index, right in enumerate(world[1]) if index not in matched_right
+        )
     if query.where is not None:
         joined = [row for row in joined if _truth(query.where, row, spec) is True]
     if not query.group_by:

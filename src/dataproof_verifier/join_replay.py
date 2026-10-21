@@ -42,7 +42,7 @@ def make_replay_sql(spec: JoinSpec, pair: tuple[World, World]) -> str:
         parse_join_query(sql, spec, metric=is_metric).join_kind
         for sql, is_metric in ((spec.view_sql, False), (spec.metric_sql, True))
     }
-    label = "INNER JOIN" if kinds == {"inner"} else "INNER/LEFT JOIN"
+    label = "INNER JOIN" if kinds == {"inner"} else "INNER/LEFT/RIGHT/FULL JOIN"
     lines = [f"-- DataProof bounded two-table {label} replay"]
     lines.extend(replay._create_table(table) + ";" for table in spec.tables)
     for label, world in (("d1", pair[0]), ("d2", pair[1])):

@@ -1,0 +1,21 @@
+{
+  "tables": [
+    {
+      "name": "orders",
+      "max_rows": 1,
+      "columns": [
+        {"name": "id", "type": "INTEGER", "domain": [1]},
+        {"name": "cid", "type": "INTEGER", "domain": [1, 2]}
+      ]
+    },
+    {
+      "name": "customers",
+      "max_rows": 1,
+      "columns": [
+        {"name": "cid", "type": "INTEGER", "domain": [1]}
+      ]
+    }
+  ],
+  "view": "SELECT c.cid AS cid, COUNT(*) AS n FROM orders AS o RIGHT JOIN customers AS c ON o.cid = c.cid GROUP BY c.cid",
+  "metric": "SELECT COUNT(o.id) AS matched FROM orders AS o RIGHT JOIN customers AS c ON o.cid = c.cid"
+}
