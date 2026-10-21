@@ -406,6 +406,140 @@ def _predicate(node: exp.Expression, spec: JoinSpec, aliases: tuple[str, str]) -
     raise UnsupportedError(f"unsupported WHERE predicate: {type(node).__name__}")
 
 
+def _transparent_sources(node: exp.Select, spec: JoinSpec) -> exp.Select:
+    """Expand only row-preserving column renames, never a general SQL rewrite.
+
+    A projection-only SELECT has a one-to-one bag mapping to its source rows.
+    This allows the existing two-table evaluator to use base-column references;
+    DuckDB still runs the untouched original SQL for independent checking.
+    """
+    node = node.copy()
+    definitions: dict[str, tuple[str, dict[str, str]]] = {}
+    with_clause = node.args.get("with_")
+    if with_clause is not None:
+        if (
+            not isinstance(with_clause, exp.With)
+            or with_clause.args.get("recursive")
+            or not 1 <= len(with_clause.expressions) <= 2
+            or any(
+                value
+                for key, value in with_clause.args.items()
+                if key not in {"expressions", "recursive"}
+            )
+        ):
+            raise UnsupportedError("only one or two nonrecursive projection CTEs are supported")
+
+    def direct_projection(query: exp.Expression) -> tuple[str, dict[str, str]]:
+        if not isinstance(query, exp.Select) or any(
+            value for key, value in query.args.items() if key not in {"expressions", "from_"}
+        ):
+            raise UnsupportedError("CTE/derived table must be a projection-only SELECT")
+        source = query.args.get("from_")
+        if not isinstance(source, exp.From) or not isinstance(source.this, exp.Table):
+            raise UnsupportedError("CTE/derived table requires one local table source")
+        if any(value for key, value in source.args.items() if key != "this"):
+            raise UnsupportedError("unsupported nested FROM option")
+        source_table = source.this
+        if source_table.db or source_table.catalog:
+            raise UnsupportedError("external table source is unsupported")
+        if any(value for key, value in source_table.args.items() if key not in {"this", "alias"}):
+            raise UnsupportedError("unsupported nested table option")
+        table_alias = source_table.args.get("alias")
+        if isinstance(table_alias, exp.TableAlias) and table_alias.args.get("columns"):
+            raise UnsupportedError("nested source column-alias lists are unsupported")
+        name = _simple(source_table.name, "nested source")
+        source_alias = source_table.alias or name
+        if name in definitions:
+            base, inherited = definitions[name]
+        elif name in {table.table for table in spec.tables}:
+            base = name
+            inherited = {
+                col.name: col.name
+                for table in spec.tables
+                if table.table == name
+                for col in table.columns
+            }
+        else:
+            raise UnsupportedError("CTE dependency must be an earlier CTE or declared table")
+        mapping: dict[str, str] = {}
+        if not 1 <= len(query.expressions) <= 3:
+            raise UnsupportedError("projection CTE requires one to three direct columns")
+        for item in query.expressions:
+            actual = item.this if isinstance(item, exp.Alias) else item
+            if not isinstance(actual, exp.Column) or actual.db or actual.catalog:
+                raise UnsupportedError("projection CTE admits only direct columns")
+            if actual.table and actual.table != source_alias:
+                raise UnsupportedError("nested column qualifier does not match source")
+            output = _simple(
+                item.alias if isinstance(item, exp.Alias) else actual.name, "projection alias"
+            )
+            column = _simple(actual.name, "nested column")
+            if output in mapping or column not in inherited:
+                raise UnsupportedError("ambiguous or unknown nested projection column")
+            mapping[output] = inherited[column]
+        return base, mapping
+
+    if with_clause is not None:
+        for cte in with_clause.expressions:
+            if (
+                not isinstance(cte, exp.CTE)
+                or not cte.alias
+                or cte.args.get("materialized")
+                or cte.args.get("key_expressions")
+            ):
+                raise UnsupportedError("unsupported CTE declaration")
+            cte_alias = cte.args.get("alias")
+            if isinstance(cte_alias, exp.TableAlias) and cte_alias.args.get("columns"):
+                raise UnsupportedError("CTE column-alias lists are unsupported")
+            name = _simple(cte.alias, "CTE name")
+            if name in definitions or name in {table.table for table in spec.tables}:
+                raise UnsupportedError("CTE name must be unique and distinct from source tables")
+            definitions[name] = direct_projection(cte.this)
+
+    alias_maps: dict[str, dict[str, str]] = {}
+    source = node.args.get("from_")
+    joins = node.args.get("joins")
+    if not isinstance(source, exp.From) or not isinstance(joins, list) or len(joins) != 1:
+        return node
+
+    def expand(item: exp.Expression) -> exp.Expression:
+        if isinstance(item, exp.Subquery):
+            if not item.alias or any(
+                value for key, value in item.args.items() if key not in {"this", "alias"}
+            ):
+                raise UnsupportedError("derived table requires a simple alias")
+            base, mapping = direct_projection(item.this)
+            alias = _simple(item.alias, "derived alias")
+        elif isinstance(item, exp.Table) and item.name in definitions:
+            if item.db or item.catalog:
+                raise UnsupportedError("external CTE reference is unsupported")
+            if any(value for key, value in item.args.items() if key not in {"this", "alias"}):
+                raise UnsupportedError("unsupported CTE reference option")
+            base, mapping = definitions[item.name]
+            alias = _simple(item.alias or item.name, "CTE reference alias")
+        else:
+            return item
+        if alias in alias_maps:
+            raise UnsupportedError("source aliases must differ")
+        alias_maps[alias] = mapping
+        return exp.Table(
+            this=exp.to_identifier(base), alias=exp.TableAlias(this=exp.to_identifier(alias))
+        )
+
+    source.set("this", expand(source.this))
+    joins[0].set("this", expand(joins[0].this))
+    node.set("with_", None)
+    if definitions and not alias_maps:
+        raise UnsupportedError("unused CTE definitions are unsupported")
+    for column in node.find_all(exp.Column):
+        if column.table in alias_maps:
+            mapping = alias_maps[column.table]
+            if column.name not in mapping:
+                raise UnsupportedError("outer query references an unprojected nested column")
+            column.set("this", exp.to_identifier(mapping[column.name]))
+    return node
+
+
 def parse_join_query(sql: str, spec: JoinSpec, *, metric: bool) -> JoinQuery:
     if len(sql) > 4096:
         raise UnsupportedError("SQL exceeds 4096 characters")
@@ -416,6 +550,7 @@ def parse_join_query(sql: str, spec: JoinSpec, *, metric: bool) -> JoinQuery:
     if len(statements) != 1 or not isinstance(statements[0], exp.Select):
         raise UnsupportedError("exactly one SELECT is required")
     node = statements[0]
+    node = _transparent_sources(node, spec)
     if any(
         value
         for key, value in node.args.items()

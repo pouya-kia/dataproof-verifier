@@ -56,6 +56,7 @@ def _fragment_limits() -> dict[str, Any]:
         "case_when_arms": 3,
         "join_forms": ["INNER", "LEFT", "RIGHT", "FULL"],
         "equality_keys_per_join": [1, 2],
+        "nested_sources": "up to two nonrecursive projection-only CTEs or derived tables",
     }
 
 
