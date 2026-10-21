@@ -1,0 +1,27 @@
+{
+  "tables": [
+    {
+      "name": "orders",
+      "columns": [
+        {"name": "id", "type": "INTEGER", "nullable": false, "domain": [1, 2]},
+        {"name": "cid", "type": "INTEGER", "nullable": false, "domain": [7]}
+      ],
+      "primary_key": [],
+      "unique": [],
+      "max_rows": 2
+    },
+    {
+      "name": "customers",
+      "columns": [
+        {"name": "cid", "type": "INTEGER", "nullable": false, "domain": [7]}
+      ],
+      "primary_key": [],
+      "unique": [],
+      "max_rows": 2
+    }
+  ],
+  "view": "WITH x AS (SELECT o.cid AS cid, o.id AS oid, COUNT(*) AS n FROM orders AS o INNER JOIN customers AS c ON o.cid = c.cid GROUP BY o.cid, o.id) SELECT x.cid AS cid, SUM(x.n) AS total FROM x GROUP BY x.cid",
+  "metric": "WITH x AS (SELECT o.cid AS cid, o.id AS oid, COUNT(*) AS n FROM orders AS o INNER JOIN customers AS c ON o.cid = c.cid GROUP BY o.cid, o.id) SELECT MAX(x.n) AS peak FROM x",
+  "timeout_ms": 10000,
+  "output_dir": "artifacts/aggregate-cte-fanout"
+}

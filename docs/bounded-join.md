@@ -21,6 +21,7 @@ dataproof-verifier join explain artifacts/my-new-join-run/witness.json
 dataproof-verifier join preflight examples/join/left_missing_match.json
 dataproof-verifier join preflight examples/join/projection_cte.json
 dataproof-verifier join preflight examples/join/monthly_timestamp_distinct.json
+dataproof-verifier join preflight examples/join/aggregate_cte_fanout.json
 ```
 
 `--output` **must name a new directory** for each run. The command refuses
@@ -101,6 +102,22 @@ and creates only a result record, not a witness.
   rules. A `WHERE` condition is applied **after** null-extension; `ON` accepts
   only the one or two direct equalities, not arbitrary predicates or a rewritten
   `WHERE`. Output-column order matters; output-row order does not.
+- The development `0.1.0a4.dev0` joined path additionally admits **one**
+  nonrecursive, once-referenced grouped aggregate CTE or derived SELECT.
+  Its inner query is an otherwise admitted two-table joined grouped query,
+  including optional admitted `WHERE`, with named direct grouping projections
+  and named aggregates. The outer SELECT reads that materialized bag exactly
+  once. A retained view groups by one or two direct materialized columns and
+  projects them once plus a named aggregate; a scalar metric has no group and
+  exactly one aggregate. Outer aggregates are direct `COUNT(*)`, `COUNT(col)`,
+  `COUNT(DISTINCT col)`, `SUM(col)`, `MIN(col)` and `MAX(col)`; numeric forms
+  require an INTEGER output. Empty inner grouped output is an empty bag;
+  scalar outer COUNT is 0 and scalar SUM/MIN/MAX is NULL. No outer `WHERE`,
+  `HAVING`, recursive or multiply referenced CTE, third aggregation stage,
+  correlated subquery or extra join is admitted. DuckDB runs the original CTE
+  SQL; Python uses a version-1 materialized-bag plan. The
+  [aggregate CTE fanout example](../examples/join/aggregate_cte_fanout.json)
+  is researcher-authored synthetic evidence, not an original developer task.
 - The analytical upper bound on **combined** two-table legal worlds must be
   at most 500, computed before key filtering. This conservative cap may
   reject a constrained schema with fewer actual worlds. Two databases are
@@ -148,8 +165,8 @@ multiple joins or retained views, non-equality `ON`, more than two join keys,
 unsupported string expressions, timezone conversions and DATE/TIMESTAMP casts,
 more than two grouping columns, `HAVING`, windows (including `ROW_NUMBER`,
 `RANK`, `DENSE_RANK` and windowed aggregates), `ORDER BY`, scalar or
-correlated subqueries, filtering/aggregate CTEs, recursive CTEs,
-multi-stage aggregation, arbitrary SQL dialects, writes, UDFs, production database access and
+correlated subqueries, general filtered/aggregate CTE graphs, recursive CTEs,
+more than one materialized aggregate stage, arbitrary SQL dialects, writes, UDFs, production database access and
 dbt model graphs. The existing one-table NoUndo, Doppelgänger and Proof2Test
 contracts remain unchanged. No public-origin task in the frozen 50-record
 intake has been counted as solved by this new synthetic capability.

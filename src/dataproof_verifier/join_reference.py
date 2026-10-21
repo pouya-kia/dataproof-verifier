@@ -17,7 +17,7 @@ import duckdb
 
 from dataproof_verifier import replay
 from dataproof_verifier.join_model import JoinQuery, JoinSpec, World, all_join_worlds
-from dataproof_verifier.relational_core import compile_join_query, evaluate
+from dataproof_verifier.relational_core import RelationalPlan, compile_join_query, evaluate
 
 
 @dataclass(frozen=True)
@@ -59,11 +59,14 @@ def _search(
 
 
 def search_python(
-    spec: JoinSpec, view: JoinQuery, metric: JoinQuery, deadline: float
+    spec: JoinSpec,
+    view: JoinQuery | RelationalPlan,
+    metric: JoinQuery | RelationalPlan,
+    deadline: float,
 ) -> FiniteResult:
     worlds = all_join_worlds(spec)
-    view_plan = compile_join_query(view, spec)
-    metric_plan = compile_join_query(metric, spec)
+    view_plan = view if isinstance(view, RelationalPlan) else compile_join_query(view, spec)
+    metric_plan = metric if isinstance(metric, RelationalPlan) else compile_join_query(metric, spec)
     return _search(
         worlds,
         lambda world: (evaluate(view_plan, spec, world), evaluate(metric_plan, spec, world)[0][0]),
