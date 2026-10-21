@@ -37,13 +37,21 @@ and creates only a result record, not a witness.
   DuckDB `SELECT` statements reading the two declared tables with explicit,
   distinct aliases and **one explicit INNER JOIN** on equality of direct,
   alias-qualified columns of the same declared type. NULL join keys do not
-  match. Neither query has a `WHERE`, CTE, additional join, derived source,
-  or any other clause except the view's single direct `GROUP BY` column.
-- The view projects that grouped column once and at least one named direct
+  match. Neither query has a CTE, additional join, derived source,
+  or any other clause except an optional restricted `WHERE` and the view's
+  one or two direct, distinct `GROUP BY` columns. Each query may use its own
+  `WHERE`. Admitted predicates combine `AND`, `OR`, `NOT`, parentheses,
+  direct-column `IS NULL`/`IS NOT NULL`, and direct comparisons
+  `=`, `!=`, `<`, `<=`, `>`, `>=` between same-type columns or an INTEGER
+  column and signed 32-bit integer literal. SQL UNKNOWN filters out a row; Boolean
+  operators follow SQL three-valued logic. DATE columns compare only with
+  other DATE columns. String values, casts, arithmetic and functions remain
+  unsupported.
+- The view projects every grouped column once and at least one named direct
   aggregate. The metric projects exactly one named scalar aggregate.
   Admitted aggregates are `COUNT(*)`, `COUNT(column)`,
   `COUNT(DISTINCT column)`, and integer-column `SUM`, `MIN`, `MAX`.
-  SQL grouping treats NULL group keys as one group; empty grouped output is
+  SQL grouping treats each NULL group-key component as one group; empty grouped output is
   an empty bag. Scalar `COUNT` of empty join output is 0, while `SUM`/extrema
   are NULL. Output-column order matters; output-row order does not.
 - The analytical upper bound on **combined** two-table legal worlds must be
@@ -87,8 +95,8 @@ the declared retained summary is all that remains. This example does not
 establish that raw data were deleted in any external workflow.
 
 Unsupported forms fail closed: implicit/comma/cross/outer/semi/anti joins,
-multiple joins or retained views, compound `ON`, string keys, expressions,
-filters, multiple grouping columns, `HAVING`, windows, `ORDER BY`, subqueries,
+multiple joins or retained views, compound `ON`, string keys, unsupported expressions,
+more than two grouping columns, `HAVING`, windows, `ORDER BY`, subqueries,
 CTEs, arbitrary SQL dialects, writes, UDFs, production database access and
 dbt model graphs. The existing one-table NoUndo, Doppelgänger and Proof2Test
 contracts remain unchanged. No public-origin task in the frozen 50-record

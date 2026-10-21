@@ -228,11 +228,16 @@ def test_backend_error_and_timeout_are_durable(
     [
         f"{SELECT} FROM orders AS o LEFT JOIN customers AS c ON o.cid = c.cid GROUP BY o.cid",
         f"{SELECT} FROM orders AS o JOIN customers AS c ON o.cid = c.cid GROUP BY o.cid",
-        f"{SELECT} {INNER} WHERE o.id = 1 GROUP BY o.cid",
+        f"{SELECT} {INNER} WHERE ABS(o.id) = 1 GROUP BY o.cid",
         f"{SELECT} {INNER} OR o.id = c.cid GROUP BY o.cid",
-        f"{SELECT} {INNER} GROUP BY o.cid, o.id",
+        f"{SELECT} {INNER} GROUP BY o.cid, o.id, c.cid",
         f"{SELECT} {INNER} GROUP BY o.cid HAVING COUNT(*) > 1",
         f"{SELECT} {INNER} GROUP BY o.cid UNION SELECT 1, 2",
+        f"{SELECT} {INNER} WHERE 1 = 1 GROUP BY o.cid",
+        f"{SELECT} {INNER} WHERE o.id = '1' GROUP BY o.cid",
+        f"{SELECT} {INNER} WHERE o.id + 1 = 2 GROUP BY o.cid",
+        f"{SELECT} {INNER} WHERE o.id IN (1, 2) GROUP BY o.cid",
+        f"{SELECT} {INNER} WHERE o.id = 2147483648 GROUP BY o.cid",
     ],
 )
 def test_unsupported_sql_fails_closed(sql: str) -> None:
@@ -366,3 +371,104 @@ def test_complete_methods_agree_on_small_worlds() -> None:
     assert py.witness is not None
     assert join_reference.check_pair_duckdb(spec, py.witness)[0]
     assert join_reference.search_python(spec, view, metric, 0).status == "INCONCLUSIVE"
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        "o.id = 1",
+        "o.id != 1",
+        "o.id > 0 AND NOT (o.id < 2)",
+        "o.id = 1 OR o.id IS NULL",
+        "NOT (o.id = 1 OR c.cid IS NULL)",
+        "o.id <= c.cid",
+        "o.id IS NOT NULL",
+    ],
+)
+def test_where_three_valued_differential_for_every_world(condition: str) -> None:
+    raw = _raw()
+    raw["tables"][0]["columns"][0]["nullable"] = True  # type: ignore[index]
+    raw["tables"][0]["columns"][0]["domain"] = [None, 1]  # type: ignore[index]
+    raw["view"] = str(raw["view"]).replace(" GROUP BY", f" WHERE {condition} GROUP BY")
+    raw["metric"] = str(raw["metric"]) + f" WHERE {condition}"
+    spec = parse_join_spec(raw)
+    view = parse_join_query(spec.view_sql, spec, metric=False)
+    metric = parse_join_query(spec.metric_sql, spec, metric=True)
+    con = replay._connection()
+    try:
+        for table in spec.tables:
+            con.execute(replay._create_table(table))
+        for world in all_join_worlds(spec):
+            py_view = join_reference.evaluate_python(view, spec, world)
+            py_metric = join_reference.evaluate_python(metric, spec, world)[0][0]
+            db_view, db_metric = join_reference.evaluate_duckdb(con, spec, world)
+            assert Counter(py_view) == Counter(db_view)
+            assert py_metric == db_metric
+    finally:
+        con.close()
+
+
+def test_two_grouping_columns_projection_order_and_nulls(tmp_path: Path) -> None:
+    raw = _raw()
+    raw["tables"][0]["columns"][0]["nullable"] = True  # type: ignore[index]
+    raw["tables"][0]["columns"][0]["domain"] = [None, 1]  # type: ignore[index]
+    raw["view"] = (
+        "SELECT o.id AS order_id, o.cid AS customer_id, COUNT(*) AS joined_rows "
+        "FROM orders AS o INNER JOIN customers AS c ON o.cid = c.cid "
+        "GROUP BY o.cid, o.id"
+    )
+    spec = parse_join_spec(raw)
+    view = parse_join_query(spec.view_sql, spec, metric=False)
+    con = replay._connection()
+    try:
+        for table in spec.tables:
+            con.execute(replay._create_table(table))
+        for world in all_join_worlds(spec):
+            py_view = join_reference.evaluate_python(view, spec, world)
+            db_view = join_reference.evaluate_duckdb(con, spec, world)[0]
+            assert Counter(py_view) == Counter(db_view)
+    finally:
+        con.close()
+    source = _file(tmp_path, raw)
+    out = tmp_path / "two-keys"
+    assert join_cli.check(source, out, True) == 3
+    assert json.loads((out / "result.json").read_text())["bounded_exhaustion_complete"] is True
+
+
+def test_filtered_join_witness_replays(tmp_path: Path) -> None:
+    raw = _raw()
+    raw["view"] = str(raw["view"]).replace(" GROUP BY", " WHERE o.id > 0 GROUP BY")
+    raw["metric"] = str(raw["metric"]) + " WHERE o.id > 0"
+    source = _file(tmp_path, raw)
+    out = tmp_path / "filtered"
+    assert join_cli.check(source, out, True) == 0
+    assert validate_serialized(out / "witness.json") == (True, "REPLAY_OK")
+
+
+def test_date_column_where_comparison_differential() -> None:
+    raw = _raw()
+    raw["tables"][0]["columns"].append(  # type: ignore[index]
+        {"name": "day", "type": "DATE", "nullable": True, "domain": [None, "2024-01-01"]}
+    )
+    raw["tables"][1]["columns"].append(  # type: ignore[index]
+        {"name": "day", "type": "DATE", "nullable": True, "domain": [None, "2024-01-01"]}
+    )
+    raw["tables"][0]["max_rows"] = 1  # type: ignore[index]
+    raw["tables"][1]["max_rows"] = 1  # type: ignore[index]
+    raw["view"] = str(raw["view"]).replace(" GROUP BY", " WHERE o.day = c.day GROUP BY")
+    raw["metric"] = str(raw["metric"]) + " WHERE o.day = c.day"
+    spec = parse_join_spec(raw)
+    view = parse_join_query(spec.view_sql, spec, metric=False)
+    metric = parse_join_query(spec.metric_sql, spec, metric=True)
+    con = replay._connection()
+    try:
+        for table in spec.tables:
+            con.execute(replay._create_table(table))
+        for world in all_join_worlds(spec):
+            py_view = join_reference.evaluate_python(view, spec, world)
+            py_metric = join_reference.evaluate_python(metric, spec, world)[0][0]
+            db_view, db_metric = join_reference.evaluate_duckdb(con, spec, world)
+            assert Counter(py_view) == Counter(db_view)
+            assert py_metric == db_metric
+    finally:
+        con.close()

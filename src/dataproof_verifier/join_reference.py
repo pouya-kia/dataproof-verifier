@@ -18,6 +18,7 @@ import duckdb
 from dataproof_verifier import replay
 from dataproof_verifier.join_model import (
     JoinAggregate,
+    JoinPredicate,
     JoinQuery,
     JoinSpec,
     Ref,
@@ -61,6 +62,51 @@ def _aggregate(
     raise AssertionError("unrecognized admitted aggregate")
 
 
+def _truth(
+    predicate: JoinPredicate,
+    row: tuple[tuple[Any, ...], tuple[Any, ...]],
+    spec: JoinSpec,
+) -> bool | None:
+    op = predicate.op
+    operands = predicate.operands
+    if op in {"and", "or"}:
+        left, right = operands
+        assert isinstance(left, JoinPredicate) and isinstance(right, JoinPredicate)
+        a, b = _truth(left, row, spec), _truth(right, row, spec)
+        if op == "and":
+            return False if a is False or b is False else None if a is None or b is None else True
+        return True if a is True or b is True else None if a is None or b is None else False
+    if op == "not":
+        inner = operands[0]
+        assert isinstance(inner, JoinPredicate)
+        value = _truth(inner, row, spec)
+        return None if value is None else not value
+    if op == "is_null":
+        ref = operands[0]
+        assert isinstance(ref, Ref)
+        return _value(ref, row, spec) is None
+    left, right = operands
+    if isinstance(left, JoinPredicate) or isinstance(right, JoinPredicate):
+        raise AssertionError("comparison operands must be scalar")
+    left_value = _value(left, row, spec) if isinstance(left, Ref) else left
+    right_value = _value(right, row, spec) if isinstance(right, Ref) else right
+    if left_value is None or right_value is None:
+        return None
+    if op == "eq":
+        return left_value == right_value
+    if op == "neq":
+        return left_value != right_value
+    if op == "lt":
+        return left_value < right_value
+    if op == "lte":
+        return left_value <= right_value
+    if op == "gt":
+        return left_value > right_value
+    if op == "gte":
+        return left_value >= right_value
+    raise AssertionError("unrecognized admitted predicate")
+
+
 def evaluate_python(query: JoinQuery, spec: JoinSpec, world: World) -> tuple[tuple[Any, ...], ...]:
     joined = [
         (left, right)
@@ -69,19 +115,22 @@ def evaluate_python(query: JoinQuery, spec: JoinSpec, world: World) -> tuple[tup
         if _value(query.on[0], (left, right), spec) is not None
         and _value(query.on[0], (left, right), spec) == _value(query.on[1], (left, right), spec)
     ]
-    if query.group_by is None:
+    if query.where is not None:
+        joined = [row for row in joined if _truth(query.where, row, spec) is True]
+    if not query.group_by:
         agg = query.projections[0].aggregate
         assert agg is not None
         return ((_aggregate(agg, joined, spec),),)
-    groups: dict[Any, list[tuple[tuple[Any, ...], tuple[Any, ...]]]] = {}
+    groups: dict[tuple[Any, ...], list[tuple[tuple[Any, ...], tuple[Any, ...]]]] = {}
     for row in joined:
-        groups.setdefault(_value(query.group_by, row, spec), []).append(row)
+        key = tuple(_value(ref, row, spec) for ref in query.group_by)
+        groups.setdefault(key, []).append(row)
     result: list[tuple[Any, ...]] = []
     for key, members in groups.items():
         output: list[Any] = []
         for projection in query.projections:
             if projection.ref is not None:
-                output.append(key)
+                output.append(key[query.group_by.index(projection.ref)])
             else:
                 assert projection.aggregate is not None
                 output.append(_aggregate(projection.aggregate, members, spec))

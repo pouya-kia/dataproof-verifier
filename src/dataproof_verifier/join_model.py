@@ -51,9 +51,16 @@ class JoinProjection:
 
 
 @dataclass(frozen=True)
+class JoinPredicate:
+    op: str
+    operands: tuple[Ref | int | JoinPredicate, ...]
+
+
+@dataclass(frozen=True)
 class JoinQuery:
     on: tuple[Ref, Ref]
-    group_by: Ref | None
+    group_by: tuple[Ref, ...]
+    where: JoinPredicate | None
     projections: tuple[JoinProjection, ...]
 
 
@@ -213,6 +220,61 @@ def _aggregate(node: exp.Expression, spec: JoinSpec, aliases: tuple[str, str]) -
     raise UnsupportedError(f"unsupported expression: {type(node).__name__}")
 
 
+def _operand(node: exp.Expression, spec: JoinSpec, aliases: tuple[str, str]) -> Ref | int:
+    if isinstance(node, exp.Column):
+        return _ref(node, spec, aliases)
+    if isinstance(node, exp.Literal) and not node.is_string and node.this.isdigit():
+        value = int(node.this)
+        if value < 2**31:
+            return value
+    if isinstance(node, exp.Neg) and isinstance(node.this, exp.Literal):
+        literal = node.this
+        if not literal.is_string and literal.this.isdigit():
+            value = -int(literal.this)
+            if -(2**31) <= value:
+                return value
+    raise UnsupportedError("WHERE operands must be direct columns or signed 32-bit integers")
+
+
+def _predicate(node: exp.Expression, spec: JoinSpec, aliases: tuple[str, str]) -> JoinPredicate:
+    if isinstance(node, exp.Paren):
+        return _predicate(node.this, spec, aliases)
+    if isinstance(node, (exp.And, exp.Or)):
+        return JoinPredicate(
+            type(node).__name__.lower(),
+            (_predicate(node.this, spec, aliases), _predicate(node.expression, spec, aliases)),
+        )
+    if isinstance(node, exp.Not):
+        return JoinPredicate("not", (_predicate(node.this, spec, aliases),))
+    if isinstance(node, exp.Is) and isinstance(node.expression, exp.Null):
+        return JoinPredicate("is_null", (_ref(node.this, spec, aliases),))
+    comparisons = {
+        exp.EQ: "eq",
+        exp.NEQ: "neq",
+        exp.LT: "lt",
+        exp.LTE: "lte",
+        exp.GT: "gt",
+        exp.GTE: "gte",
+    }
+    for kind, op in comparisons.items():
+        if isinstance(node, kind):
+            left = _operand(node.this, spec, aliases)
+            right = _operand(node.expression, spec, aliases)
+            if isinstance(left, int) and isinstance(right, int):
+                raise UnsupportedError("WHERE comparison needs a source column")
+            types = {
+                spec.tables[item.table].column(item.column).type
+                for item in (left, right)
+                if isinstance(item, Ref)
+            }
+            if len(types) != 1 or (
+                "DATE" in types and (isinstance(left, int) or isinstance(right, int))
+            ):
+                raise UnsupportedError("WHERE comparison operands have incompatible types")
+            return JoinPredicate(op, (left, right))
+    raise UnsupportedError(f"unsupported WHERE predicate: {type(node).__name__}")
+
+
 def parse_join_query(sql: str, spec: JoinSpec, *, metric: bool) -> JoinQuery:
     if len(sql) > 4096:
         raise UnsupportedError("SQL exceeds 4096 characters")
@@ -226,7 +288,7 @@ def parse_join_query(sql: str, spec: JoinSpec, *, metric: bool) -> JoinQuery:
     if any(
         value
         for key, value in node.args.items()
-        if key not in {"expressions", "from_", "joins", "group"}
+        if key not in {"expressions", "from_", "joins", "group", "where"}
     ):
         raise UnsupportedError("unsupported SELECT clause")
     source = node.args.get("from_")
@@ -261,24 +323,30 @@ def parse_join_query(sql: str, spec: JoinSpec, *, metric: bool) -> JoinQuery:
     if left.table == 1:
         left, right = right, left
     group = node.args.get("group")
-    group_ref = None
+    group_refs: tuple[Ref, ...] = ()
     if group is not None:
-        if not isinstance(group, exp.Group) or len(group.expressions) != 1:
-            raise UnsupportedError("one direct GROUP BY column required")
+        if not isinstance(group, exp.Group) or not 1 <= len(group.expressions) <= 2:
+            raise UnsupportedError("one or two direct GROUP BY columns required")
         if any(value for key, value in group.args.items() if key != "expressions"):
             raise UnsupportedError("unsupported GROUP BY option")
-        group_ref = _ref(group.expressions[0], spec, aliases)
-    if metric and group_ref is not None:
+        group_refs = tuple(_ref(item, spec, aliases) for item in group.expressions)
+        if len(set(group_refs)) != len(group_refs):
+            raise UnsupportedError("GROUP BY columns must be distinct")
+    if metric and group_refs:
         raise UnsupportedError("metric must be scalar")
-    if not metric and group_ref is None:
-        raise UnsupportedError("retained view must group by one column")
+    if not metric and not group_refs:
+        raise UnsupportedError("retained view must group by one or two columns")
+    where = node.args.get("where")
+    if where is not None and not isinstance(where, exp.Where):
+        raise UnsupportedError("invalid WHERE clause")
+    condition = _predicate(where.this, spec, aliases) if where is not None else None
     projections: list[JoinProjection] = []
     for expression in node.expressions:
         actual = expression.this if isinstance(expression, exp.Alias) else expression
         alias = expression.alias if isinstance(expression, exp.Alias) else None
         if isinstance(actual, exp.Column):
             ref = _ref(actual, spec, aliases)
-            if ref != group_ref:
+            if ref not in group_refs:
                 raise UnsupportedError("nonaggregate projection must be the grouping column")
             projections.append(
                 JoinProjection(_simple(alias or ref.column, "projection"), ref, None)
@@ -296,11 +364,12 @@ def parse_join_query(sql: str, spec: JoinSpec, *, metric: bool) -> JoinQuery:
     if metric and (len(projections) != 1 or projections[0].aggregate is None):
         raise UnsupportedError("metric must select one scalar aggregate")
     if not metric and (
-        sum(p.ref is not None for p in projections) != 1
+        {p.ref for p in projections if p.ref is not None} != set(group_refs)
+        or sum(p.ref is not None for p in projections) != len(group_refs)
         or not any(p.aggregate is not None for p in projections)
     ):
-        raise UnsupportedError("view needs its grouping column and an aggregate")
-    return JoinQuery((left, right), group_ref, tuple(projections))
+        raise UnsupportedError("view needs every grouping column once and an aggregate")
+    return JoinQuery((left, right), group_refs, condition, tuple(projections))
 
 
 def all_join_worlds(spec: JoinSpec) -> list[World]:
