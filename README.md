@@ -85,7 +85,7 @@ The [DataProof-100 engineering evaluation](docs/evaluation/dataproof-100-evaluat
 reports the Alpha's finite synthetic checks and the unchanged eligibility of
 50 public-origin records, including the negative coverage result.
 
-The [final post-change DataProof-100 accounting](docs/evaluation/sql-coverage-final.md)
+The [final post-change DataProof-100 comparison](docs/evaluation/dataproof-100-final-coverage.md)
 retains all 50 original public-origin problems and 50 synthetic controls. It
 does not claim that any original public-origin task was fully solved by the
 new candidate syntax. The `v0.1.0a1` release remains available separately.
