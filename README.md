@@ -1,10 +1,10 @@
-# DataProof — experimental Alpha (v0.1.0a3 source candidate)
+# DataProof — experimental Alpha (`0.1.0a4.dev0` development source)
 
 DataProof is an offline, bounded SQL reasoning CLI. It works on small synthetic tables, not production databases. Its three workflows are distinct:
 
 Alpha v0.1.0a1 is publicly available from the [GitHub prerelease](https://github.com/pouya-kia/dataproof-verifier/releases/tag/v0.1.0a1). Distribution: `dataproof-verifier`; import: `dataproof_verifier`; CLI: `dataproof-verifier`. It is **not published on PyPI**; install from this repository or the release Wheel. The unrelated PyPI `dataproof` project is not a dependency.
 
-Current source is an untagged `0.1.0a3` **Alpha candidate**, not
+Current source is an untagged `0.1.0a4.dev0` **development candidate**, not
 a tagged GitHub release or PyPI publication. The published `v0.1.0a1`
 Wheel and its frozen evaluation are unchanged.
 
@@ -83,6 +83,9 @@ frames and all `OVER` windows remain unsupported. See [Wave C](docs/evaluation/s
 [Wave D](docs/evaluation/sql-coverage-wave-d.md), the [final capability and
 coverage matrix](docs/evaluation/sql-coverage-a3-candidate.md), and the
 [candidate release notes](docs/release-notes-0.1.0a3.md).
+This development source routes the bounded joined-query Python search through
+the [versioned relational plan](docs/architecture/relational-core.md); the
+classic one-table Z3, Doppelgänger, and Proof2Test contracts are unchanged.
 For example, after installation:
 
 ```sh

@@ -22,6 +22,7 @@ from dataproof_verifier.join_model import (
 from dataproof_verifier.join_reference import check_pair_duckdb, search_duckdb, search_python
 from dataproof_verifier.join_replay import digest, make_replay_sql, validate_serialized
 from dataproof_verifier.models import SpecError, UnsupportedError, load_raw_spec, serial_value
+from dataproof_verifier.relational_core import PLAN_VERSION
 from dataproof_verifier.status import EXIT_CODES
 
 
@@ -67,6 +68,7 @@ def preflight(path: Path, machine: bool) -> int:
         result = {
             "status": "ELIGIBLE",
             "backend": "complete_python_finite_with_duckdb_reference",
+            "plan_version": PLAN_VERSION,
             "analytical_world_bound": analytical_world_bound(spec),
             "max_rows_per_table": [table.max_rows for table in spec.tables],
             "fragment_limits": _fragment_limits(),
@@ -201,6 +203,7 @@ def check(path: Path, output: Path | None, machine: bool) -> int:
         return EXIT_CODES["INVALID_INPUT"]
     result: dict[str, Any] = {
         "schema_version": 1,
+        "plan_version": PLAN_VERSION,
         "module": "join-no-undo",
         "backend": "complete_python_finite",
         "reference_backend": "duckdb_finite",
