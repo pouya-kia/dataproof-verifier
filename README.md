@@ -97,6 +97,10 @@ For example, after installation:
 .venv/bin/dataproof-verifier join preflight examples/join/right_missing_match.json
 .venv/bin/dataproof-verifier join preflight examples/join/projection_cte.json
 .venv/bin/dataproof-verifier join preflight examples/join/monthly_timestamp_distinct.json
+.venv/bin/dataproof-verifier join preflight examples/join/aggregate_cte_fanout.json
+.venv/bin/dataproof-verifier join check examples/join/aggregate_cte_fanout.json --output artifacts/aggregate-cte
+.venv/bin/dataproof-verifier join replay artifacts/aggregate-cte/witness.json
+.venv/bin/dataproof-verifier join explain artifacts/aggregate-cte/witness.json
 ```
 
 ## Contribute or report a problem
@@ -113,3 +117,11 @@ The [final post-change DataProof-100 comparison](docs/evaluation/dataproof-100-f
 retains all 50 original public-origin problems and 50 synthetic controls. It
 does not claim that any original public-origin task was fully solved by the
 earlier `0.1.0a2` candidate syntax. The `v0.1.0a1` release remains available separately.
+
+For the current development source, read the [exact relational SQL and
+workflow matrix](docs/relational-sql-contract.md), the [12 authored
+full-contract controls](docs/evaluation/full-contract-sql-suite.md), and the
+[architecture-era original-task accounting](docs/evaluation/dataproof-100-architecture-postchange.md).
+The authored controls are not independent-user outcomes. The immutable
+private per-ID source ledger was unavailable for a fresh unchanged-100
+reassessment; no original-task success has been claimed from new syntax.
