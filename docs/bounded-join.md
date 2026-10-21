@@ -1,4 +1,4 @@
-# Bounded two-table join check (unreleased development)
+# Bounded two-table join check (unreleased Alpha candidate)
 
 This is a separate NoUndo workflow for one narrow Data Engineering question:
 can two legal tiny databases produce the **same retained grouped aggregate
@@ -7,7 +7,7 @@ motivated by repeated join-cardinality/fanout blockers in the
 [DataProof-100 evaluation](evaluation/dataproof-100-evaluation.md). It does
 **not** run the original multi-model dbt or BI tasks in that intake. The
 published `v0.1.0a1` Wheel does **not** contain this command. The current
-source is `0.1.0a3.dev0` development work, not a published release.
+source is an untagged `0.1.0a3` candidate, not a published release.
 
 ## Use from this development source
 

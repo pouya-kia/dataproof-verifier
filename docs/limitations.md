@@ -20,10 +20,13 @@ they share admission/world-generation assumptions. Deadline checks are
 cooperative, not an OS hard timeout or memory ceiling. The separate join
 command now admits restricted three-valued `WHERE` comparisons/Boolean
 connectives, finite ASCII STRING values, limited CASE/integer expressions in
-aggregate arguments, and up to two direct grouping columns; the one-table/Z3
+aggregate arguments, and up to two direct or restricted timestamp-period
+grouping expressions; the one-table/Z3
 command does not. RIGHT/FULL are supported only in this two-table finite path;
-three-table joins, arbitrary ON predicates, arbitrary expressions,
-CTEs, windows, timestamps, dbt graphs and unrestricted SQL
+projection-only CTE chains and derived tables are also admitted there.
+Three-table joins, arbitrary ON predicates, arbitrary expressions,
+filtered/aggregate or recursive CTEs, scalar subqueries, windows,
+timezone-aware timestamps, dbt graphs and unrestricted SQL
 remain unsupported. No original public task
 has been demonstrated solved unchanged by this addition.
 

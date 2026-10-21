@@ -1,11 +1,11 @@
-# DataProof — experimental Alpha (v0.1.0a3.dev0 development source)
+# DataProof — experimental Alpha (v0.1.0a3 source candidate)
 
 DataProof is an offline, bounded SQL reasoning CLI. It works on small synthetic tables, not production databases. Its three workflows are distinct:
 
 Alpha v0.1.0a1 is publicly available from the [GitHub prerelease](https://github.com/pouya-kia/dataproof-verifier/releases/tag/v0.1.0a1). Distribution: `dataproof-verifier`; import: `dataproof_verifier`; CLI: `dataproof-verifier`. It is **not published on PyPI**; install from this repository or the release Wheel. The unrelated PyPI `dataproof` project is not a dependency.
 
-Current source is an in-progress `0.1.0a3.dev0` **development branch**, not
-yet a tagged GitHub release or PyPI publication. The published `v0.1.0a1`
+Current source is an untagged `0.1.0a3` **Alpha candidate**, not
+a tagged GitHub release or PyPI publication. The published `v0.1.0a1`
 Wheel and its frozen evaluation are unchanged.
 
 - **NoUndo:** find two legal source bags whose retained aggregate-view bags agree but whose downstream scalar KPIs differ.
@@ -60,21 +60,29 @@ One source table, at most three rows per world, at most four columns and four de
 
 The CLI records assumptions, bounds, versions, hashes, witnesses, and replay artifacts. Reused output directories only clear unchanged DataProof-owned artifacts; unrelated files are preserved. Use separate directories for concurrent runs. See [artifact behavior](docs/limitations.md) and the demo. Scientific research scripts, raw runs, and manuscripts are not distributed in this source candidate.
 
-This development source additionally has a **separate** [bounded
+This candidate source additionally has a **separate** [bounded
 two-table equijoin workflow](docs/bounded-join.md): at most two rows per
 source, three columns and three effective domain values per column, and 500
 analytical combined worlds. It supports guarded three-valued WHERE predicates
-and at most two direct grouping columns. It uses complete finite Python search
+and at most two grouping expressions. It uses complete finite Python search
 plus an independent DuckDB SQL reference, **not** the one-table Z3 encoding.
 It now admits restricted finite ASCII STRING equality/grouping and guarded
 CASE/integer expressions in that separate join workflow only. It does not imply
-broad join, dbt, CTE, unrestricted string, window, or incremental support.
+general dbt, arbitrary CTE, unrestricted string, window, or incremental support.
 The finite join path also admits one or two direct equality keys and
 INNER/LEFT/RIGHT/FULL null-extension semantics; three-table joins remain unsupported.
 The [Wave A engineering record](docs/evaluation/sql-coverage-wave-a.md) keeps
 the original-task result at 0/50 and distinguishes these finite synthetic checks.
 The [Wave B engineering record](docs/evaluation/sql-coverage-wave-b.md) covers
 composite keys and outer-join null extension without a three-table claim.
+Projection-only, row-preserving CTE chains and derived sources are admitted;
+filtered/aggregate CTEs and scalar subqueries are not. Restricted UTC-naive
+second-precision TIMESTAMP values and `DATE_TRUNC` day/month grouping allow
+tiny period-count and COUNT DISTINCT examples. Timezone conversions, rolling
+frames and all `OVER` windows remain unsupported. See [Wave C](docs/evaluation/sql-coverage-wave-c.md),
+[Wave D](docs/evaluation/sql-coverage-wave-d.md), the [final capability and
+coverage matrix](docs/evaluation/sql-coverage-a3-candidate.md), and the
+[candidate release notes](docs/release-notes-0.1.0a3.md).
 For example, after installation:
 
 ```sh
@@ -82,6 +90,8 @@ For example, after installation:
 .venv/bin/dataproof-verifier join check examples/join/left_missing_match.json --output artifacts/left-join
 .venv/bin/dataproof-verifier join replay artifacts/left-join/witness.json
 .venv/bin/dataproof-verifier join preflight examples/join/right_missing_match.json
+.venv/bin/dataproof-verifier join preflight examples/join/projection_cte.json
+.venv/bin/dataproof-verifier join preflight examples/join/monthly_timestamp_distinct.json
 ```
 
 ## Contribute or report a problem
