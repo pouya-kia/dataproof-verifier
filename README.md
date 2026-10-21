@@ -1,8 +1,8 @@
-# DataProof — experimental Alpha release candidate
+# DataProof — experimental Alpha (v0.1.0a1)
 
 DataProof is an offline, bounded SQL reasoning CLI. It works on small synthetic tables, not production databases. Its three workflows are distinct:
 
-This local release candidate uses the approved release-preparation identifiers: distribution `dataproof-verifier`, import namespace `dataproof_verifier`, and command `dataproof-verifier`. It has not been registered or published on PyPI; install from this reviewed source or its locally built Wheel only. The unrelated PyPI `dataproof` project is not a dependency.
+Alpha v0.1.0a1 is publicly available from the [GitHub prerelease](https://github.com/pouya-kia/dataproof-verifier/releases/tag/v0.1.0a1). Distribution: `dataproof-verifier`; import: `dataproof_verifier`; CLI: `dataproof-verifier`. It is **not published on PyPI**; install from this repository or the release Wheel. The unrelated PyPI `dataproof` project is not a dependency.
 
 - **NoUndo:** find two legal source bags whose retained aggregate-view bags agree but whose downstream scalar KPIs differ.
 - **Doppelgänger:** find one legal source bag on which declared existing SQL assertions are TRUE while a separately supplied invariant is FALSE.
@@ -12,9 +12,11 @@ This local release candidate uses the approved release-preparation identifiers: 
 
 ## Install and try it
 
-Python 3.11 or 3.12 is required for this Alpha. Installing dependencies may require a network; the installed core requires no account, API key, LLM, or cloud service. From this source directory:
+Python 3.11 or 3.12 is required for this Alpha. Installing dependencies may require a network; the installed core requires no account, API key, LLM, or cloud service. To install from the public source repository:
 
 ```sh
+git clone https://github.com/pouya-kia/dataproof-verifier.git
+cd dataproof-verifier
 python3 -m venv .venv
 .venv/bin/python -m pip install .
 .venv/bin/dataproof-verifier preflight no-undo examples/no_undo/daily_distinct.json
@@ -47,10 +49,10 @@ The defective model must fail the generated assertion; the corrected one must pa
 
 ## Exact finite scope
 
-One source table, at most three rows per world, at most four columns and four declared domain values per column; finite `INTEGER` and `DATE` values with explicit NULL, primary-key and nullable-UNIQUE rules. NoUndo admits one retained grouped aggregate view and one scalar aggregate KPI. Supported aggregates are `COUNT(*)`, `COUNT(column)`, `COUNT(DISTINCT column)`, exact integer `SUM`, and direct integer `MIN`/`MAX`. A query may have one guarded row filter: integer-column equality to a signed integer literal, `IS NULL`, or `IS NOT NULL`. Doppelgänger admits one to four existing scalar assertions and one independent invariant. NULL, SQL UNKNOWN, duplicate bags, and empty inputs have explicit semantics. Unsupported joins, multiple retained views, compound predicates, HAVING, windows, arbitrary expressions, timestamps, floating-point arithmetic, and production data access fail closed. The full [semantics](docs/semantics.md), [limitations](docs/limitations.md), and [architecture](docs/architecture.md) are part of this candidate.
+One source table, at most three rows per world, at most four columns and four declared domain values per column; finite `INTEGER` and `DATE` values with explicit NULL, primary-key and nullable-UNIQUE rules. NoUndo admits one retained grouped aggregate view and one scalar aggregate KPI. Supported aggregates are `COUNT(*)`, `COUNT(column)`, `COUNT(DISTINCT column)`, exact integer `SUM`, and direct integer `MIN`/`MAX`. A query may have one guarded row filter: integer-column equality to a signed integer literal, `IS NULL`, or `IS NOT NULL`. Doppelgänger admits one to four existing scalar assertions and one independent invariant. NULL, SQL UNKNOWN, duplicate bags, and empty inputs have explicit semantics. Unsupported joins, multiple retained views, compound predicates, HAVING, windows, arbitrary expressions, timestamps, floating-point arithmetic, and production data access fail closed. The full [semantics](docs/semantics.md), [limitations](docs/limitations.md), and [architecture](docs/architecture.md) are part of this Alpha release.
 
-The CLI records assumptions, bounds, versions, hashes, witnesses, and replay artifacts. Reused output directories only clear unchanged DataProof-owned artifacts; unrelated files are preserved. Use separate directories for concurrent runs. See [artifact behavior](docs/limitations.md) and the demo. Scientific research scripts, raw runs, and manuscripts are not distributed in this production candidate.
+The CLI records assumptions, bounds, versions, hashes, witnesses, and replay artifacts. Reused output directories only clear unchanged DataProof-owned artifacts; unrelated files are preserved. Use separate directories for concurrent runs. See [artifact behavior](docs/limitations.md) and the demo. Scientific research scripts, raw runs, and manuscripts are not distributed in this Alpha release.
 
 ## Contribute or report a problem
 
-This candidate carries an [MIT license](LICENSE). Direct dependency pins and upstream license links are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Read [CONTRIBUTING.md](CONTRIBUTING.md), use the [reproducible issue template](ISSUE_TEMPLATE.md), or submit an original, possibly unsupported SQL task with [this intake template](ORIGINAL_SQL_PROBLEM_TEMPLATE.md). Read the [security reporting policy](SECURITY.md) before sharing a vulnerability. Do not submit confidential SQL, personal data, credentials, or proprietary schemas without permission. Unsupported and incomplete tasks are useful findings; do not simplify an original task solely to fit the current grammar.
+This Alpha release carries an [MIT license](LICENSE). Direct dependency pins and upstream license links are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Read [CONTRIBUTING.md](CONTRIBUTING.md), use the [reproducible issue template](ISSUE_TEMPLATE.md), or submit an original, possibly unsupported SQL task with [this intake template](ORIGINAL_SQL_PROBLEM_TEMPLATE.md). Read the [security reporting policy](SECURITY.md) before sharing a vulnerability. Do not submit confidential SQL, personal data, credentials, or proprietary schemas without permission. Unsupported and incomplete tasks are useful findings; do not simplify an original task solely to fit the current grammar.
