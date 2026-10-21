@@ -34,6 +34,8 @@ python3.11 -m venv .venv
 
 The NoUndo example has equal daily order-count, revenue, and distinct-customer summaries, but monthly distinct-customer KPIs of 1 and 2. The generated `replay.sql` ends with `REPLAY_OK` when run in DuckDB. Two bounded-negative controls are `examples/no_undo/constrained_customer.json` and `examples/no_undo/daily_sum.json`; each returns exit code 3, **not** a universal preservation proof.
 
+The [synthetic exchange-volume retention use case](examples/use_cases/exchange_volume_retention/README.md) gives a practitioner-inspired, fully runnable information-loss and bounded-repair walkthrough. Its separately coded DuckDB oracle enumerates all 16 declared legal worlds; this is engineering evidence, **not** a real exchange incident or independently sourced user-task success.
+
 ```sh
 .venv/bin/dataproof-verifier preflight doppelganger examples/doppelganger/nonnegative_amount.json
 .venv/bin/dataproof-verifier doppelganger check examples/doppelganger/nonnegative_amount.json --output artifacts/doppel
