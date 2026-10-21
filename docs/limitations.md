@@ -19,8 +19,10 @@ search and DuckDB reference are capped at 500 analytical combined worlds;
 they share admission/world-generation assumptions. Deadline checks are
 cooperative, not an OS hard timeout or memory ceiling. The separate join
 command now admits restricted three-valued `WHERE` comparisons/Boolean
-connectives and up to two direct grouping columns; the one-table/Z3 command
-does not. RIGHT/FULL joins, compound ON predicates, arbitrary expressions, dbt graphs and unrestricted SQL
+connectives, finite ASCII STRING values, limited CASE/integer expressions in
+aggregate arguments, and up to two direct grouping columns; the one-table/Z3
+command does not. RIGHT/FULL joins, compound ON predicates, arbitrary expressions,
+CTEs, windows, timestamps, dbt graphs and unrestricted SQL
 remain unsupported. No original public task
 has been demonstrated solved unchanged by this addition.
 

@@ -7,6 +7,7 @@ world enumeration, so agreement is not a proof of unrestricted correctness.
 
 from __future__ import annotations
 
+import operator
 import time
 from collections import Counter
 from collections.abc import Callable
@@ -20,6 +21,7 @@ from dataproof_verifier.join_model import (
     JoinAggregate,
     JoinPredicate,
     JoinQuery,
+    JoinScalar,
     JoinSpec,
     Ref,
     World,
@@ -46,8 +48,8 @@ def _aggregate(
 ) -> int | None:
     if aggregate.kind == "count_star":
         return len(rows)
-    assert aggregate.ref is not None
-    values = [_value(aggregate.ref, row, spec) for row in rows]
+    assert aggregate.value is not None
+    values = [_scalar_value(aggregate.value, row, spec) for row in rows]
     nonnull = [value for value in values if value is not None]
     if aggregate.kind == "count":
         return len(nonnull)
@@ -60,6 +62,44 @@ def _aggregate(
     if aggregate.kind == "max":
         return max(nonnull) if nonnull else None
     raise AssertionError("unrecognized admitted aggregate")
+
+
+def _scalar_value(
+    value: JoinScalar,
+    row: tuple[tuple[Any, ...], tuple[Any, ...]],
+    spec: JoinSpec,
+) -> Any:
+    if value.kind == "ref":
+        return _value(value.args[0], row, spec)
+    if value.kind == "literal":
+        return value.args[0]
+    if value.kind == "null":
+        return None
+    if value.kind == "identity_cast":
+        return _scalar_value(value.args[0], row, spec)
+    if value.kind in {"add", "sub"}:
+        left = _scalar_value(value.args[0], row, spec)
+        right = _scalar_value(value.args[1], row, spec)
+        if left is None or right is None:
+            return None
+        return left + right if value.kind == "add" else left - right
+    if value.kind == "case":
+        base, arms, default = value.args
+        base_value = _scalar_value(base, row, spec) if base is not None else None
+        for condition, result in arms:
+            if base is None:
+                assert isinstance(condition, JoinPredicate)
+                selected = _truth(condition, row, spec) is True
+            else:
+                assert isinstance(condition, JoinScalar)
+                candidate = _scalar_value(condition, row, spec)
+                selected = (
+                    base_value is not None and candidate is not None and base_value == candidate
+                )
+            if selected:
+                return _scalar_value(result, row, spec)
+        return _scalar_value(default, row, spec)
+    raise AssertionError("unrecognized admitted scalar")
 
 
 def _truth(
@@ -96,14 +136,9 @@ def _truth(
         return left_value == right_value
     if op == "neq":
         return left_value != right_value
-    if op == "lt":
-        return left_value < right_value
-    if op == "lte":
-        return left_value <= right_value
-    if op == "gt":
-        return left_value > right_value
-    if op == "gte":
-        return left_value >= right_value
+    ordering = {"lt": operator.lt, "lte": operator.le, "gt": operator.gt, "gte": operator.ge}
+    if op in ordering:
+        return bool(ordering[op](left_value, right_value))
     raise AssertionError("unrecognized admitted predicate")
 
 

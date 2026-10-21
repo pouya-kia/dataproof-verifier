@@ -43,6 +43,20 @@ def _load(path: Path) -> JoinSpec:
     return spec
 
 
+def _fragment_limits() -> dict[str, Any]:
+    return {
+        "tables": 2,
+        "rows_per_table": 2,
+        "columns_per_table": 3,
+        "effective_values_per_column": 3,
+        "analytical_combined_worlds": 500,
+        "string_collation": "ASCII_BINARY_CASE_SENSITIVE",
+        "string_length": [1, 32],
+        "integer_arithmetic": "ADD_SUB_SIGNED_32_BIT_NO_POSSIBLE_OVERFLOW",
+        "case_when_arms": 3,
+    }
+
+
 def preflight(path: Path, machine: bool) -> int:
     try:
         spec = _load(path)
@@ -51,6 +65,7 @@ def preflight(path: Path, machine: bool) -> int:
             "backend": "complete_python_finite_with_duckdb_reference",
             "analytical_world_bound": analytical_world_bound(spec),
             "max_rows_per_table": [table.max_rows for table in spec.tables],
+            "fragment_limits": _fragment_limits(),
         }
         code = 0
     except UnsupportedError as exc:
@@ -187,6 +202,7 @@ def check(path: Path, output: Path | None, machine: bool) -> int:
         "reference_backend": "duckdb_finite",
         "status": "INCONCLUSIVE",
         "analytical_world_bound": analytical_world_bound(spec),
+        "fragment_limits": _fragment_limits(),
         "input_sha256": input_digest,
         "result_path": str(spec.output_dir / "result.json"),
     }

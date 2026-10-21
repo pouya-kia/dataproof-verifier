@@ -7,7 +7,7 @@ motivated by repeated join-cardinality/fanout blockers in the
 [DataProof-100 evaluation](evaluation/dataproof-100-evaluation.md). It does
 **not** run the original multi-model dbt or BI tasks in that intake. The
 published `v0.1.0a1` Wheel does **not** contain this command. The current
-source is a `0.1.0a2` candidate, not a published release.
+source is `0.1.0a3.dev0` development work, not a published release.
 
 ## Use from this development source
 
@@ -29,7 +29,8 @@ and creates only a result record, not a witness.
 ## Exact contract
 
 - Exactly two distinct local source tables, in declared order. Each has 1–3
-  lowercase simple-identifier columns of finite `INTEGER` or `DATE` type,
+  lowercase simple-identifier columns of finite `INTEGER`, `DATE`, or restricted
+  `STRING` type,
   at most three **effective** values per column including an admitted NULL,
   and 0–2 rows per world. Bags preserve duplicates. Optional per-table
   `PRIMARY KEY` and nullable `UNIQUE` constraints follow the existing schema
@@ -46,15 +47,31 @@ and creates only a result record, not a witness.
   one or two direct, distinct `GROUP BY` columns. Each query may use its own
   `WHERE`. Admitted predicates combine `AND`, `OR`, `NOT`, parentheses,
   direct-column `IS NULL`/`IS NOT NULL`, and direct comparisons
-  `=`, `!=`, `<`, `<=`, `>`, `>=` between same-type columns or an INTEGER
-  column and signed 32-bit integer literal. SQL UNKNOWN filters out a row; Boolean
+  `=`, `!=`, `<`, `<=`, `>`, `>=` between same-type INTEGER/DATE columns or an INTEGER
+  column and signed 32-bit integer literal. STRING columns additionally admit
+  `=` and `!=` against other STRING columns or a restricted STRING literal.
+  SQL UNKNOWN filters out a row; Boolean
   operators follow SQL three-valued logic. DATE columns compare only with
-  other DATE columns. String values, casts, arithmetic and functions remain
-  unsupported.
+  other DATE columns. STRING domains/literals are 1–32 printable ASCII characters;
+  matching and grouping use DuckDB's default binary, case-sensitive semantics.
+  `COLLATE`, locale comparisons, empty strings, non-ASCII text, string ordering,
+  non-identity casts and general functions remain unsupported. STRING is admitted **only**
+  in this separate finite join workflow, not the one-table Z3, Doppelgänger or
+  Proof2Test contracts.
 - The view projects every grouped column once and at least one named direct
   aggregate. The metric projects exactly one named scalar aggregate.
   Admitted aggregates are `COUNT(*)`, `COUNT(column)`,
-  `COUNT(DISTINCT column)`, and integer-column `SUM`, `MIN`, `MAX`.
+  `COUNT(DISTINCT expression)`, and integer-valued `SUM`, `MIN`, `MAX`.
+  Aggregate arguments may be direct columns, admitted finite literals, a
+  searched or simple `CASE` (one to three arms, same-type INTEGER or STRING
+  branches, optional implicit NULL default), identity `CAST(... AS INTEGER)`,
+  and INTEGER addition/subtraction. Arithmetic is
+  rejected if the declared finite input-domain interval could overflow signed
+  32-bit INTEGER at any subexpression. Division, multiplication, mixed-type
+  coercion, `TRY_CAST`, STRING casts and non-identity casts remain unsupported.
+  `COUNT(expression)` and
+  `COUNT(DISTINCT expression)` admit STRING-valued expressions and ignore NULL;
+  `SUM`/extrema require INTEGER-valued expressions.
   SQL grouping treats each NULL group-key component as one group; empty grouped output is
   an empty bag. Scalar `COUNT` of empty join output is 0, while `SUM`/extrema
   are NULL. With LEFT JOIN, `COUNT(*)` includes unmatched left rows whereas
@@ -104,7 +121,7 @@ the same grouped `COUNT(*)` while `COUNT(c.cid)` differs. Neither example
 establishes that raw data were deleted in any external workflow.
 
 Unsupported forms fail closed: implicit/comma/cross/right/full/semi/anti joins,
-multiple joins or retained views, compound `ON`, string keys, unsupported expressions,
+multiple joins or retained views, compound `ON`, unsupported string expressions,
 more than two grouping columns, `HAVING`, windows, `ORDER BY`, subqueries,
 CTEs, arbitrary SQL dialects, writes, UDFs, production database access and
 dbt model graphs. The existing one-table NoUndo, Doppelgänger and Proof2Test
