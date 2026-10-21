@@ -6,7 +6,7 @@ import hashlib
 import json
 from collections import Counter
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -41,6 +41,8 @@ def _replay_table(label: str, kind: str) -> str:
 def _literal(value: Any) -> str:
     if value is None:
         return "NULL"
+    if isinstance(value, datetime):
+        return f"TIMESTAMP '{value.isoformat(timespec='seconds').replace('T', ' ')}'"
     if isinstance(value, date):
         return f"DATE '{value.isoformat()}'"
     if type(value) is int:
@@ -155,6 +157,8 @@ def _rows(raw: Any, spec: Spec) -> tuple[Row, ...]:
                 converted.append(None)
             elif col.type == "DATE" and isinstance(value, str):
                 converted.append(date.fromisoformat(value))
+            elif col.type == "TIMESTAMP" and isinstance(value, str):
+                converted.append(datetime.fromisoformat(value))
             elif col.type == "INTEGER" and type(value) is int:
                 converted.append(value)
             elif col.type == "STRING" and isinstance(value, str):

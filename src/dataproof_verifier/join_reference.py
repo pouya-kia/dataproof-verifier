@@ -12,6 +12,7 @@ import time
 from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 import duckdb
@@ -71,6 +72,19 @@ def _scalar_value(
 ) -> Any:
     if value.kind == "ref":
         return _value(value.args[0], row, spec)
+    if value.kind == "timestamp_trunc":
+        unit, ref = value.args
+        current = _value(ref, row, spec)
+        if current is None:
+            return None
+        assert isinstance(current, datetime)
+        return current.replace(
+            day=1 if unit == "MONTH" else current.day,
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
     if value.kind == "literal":
         return value.args[0]
     if value.kind == "null":
@@ -174,7 +188,10 @@ def evaluate_python(query: JoinQuery, spec: JoinSpec, world: World) -> tuple[tup
         return ((_aggregate(agg, joined, spec),),)
     groups: dict[tuple[Any, ...], list[tuple[tuple[Any, ...], tuple[Any, ...]]]] = {}
     for row in joined:
-        key = tuple(_value(ref, row, spec) for ref in query.group_by)
+        key = tuple(
+            _value(ref, row, spec) if isinstance(ref, Ref) else _scalar_value(ref, row, spec)
+            for ref in query.group_by
+        )
         groups.setdefault(key, []).append(row)
     result: list[tuple[Any, ...]] = []
     for key, members in groups.items():

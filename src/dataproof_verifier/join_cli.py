@@ -57,6 +57,7 @@ def _fragment_limits() -> dict[str, Any]:
         "join_forms": ["INNER", "LEFT", "RIGHT", "FULL"],
         "equality_keys_per_join": [1, 2],
         "nested_sources": "up to two nonrecursive projection-only CTEs or derived tables",
+        "timestamp_policy": "UTC-naive ISO seconds; DATE_TRUNC DAY/MONTH grouping only",
     }
 
 

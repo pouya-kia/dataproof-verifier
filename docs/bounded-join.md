@@ -20,6 +20,7 @@ dataproof-verifier join replay artifacts/my-new-join-run/witness.json
 dataproof-verifier join explain artifacts/my-new-join-run/witness.json
 dataproof-verifier join preflight examples/join/left_missing_match.json
 dataproof-verifier join preflight examples/join/projection_cte.json
+dataproof-verifier join preflight examples/join/monthly_timestamp_distinct.json
 ```
 
 `--output` **must name a new directory** for each run. The command refuses
@@ -30,8 +31,8 @@ and creates only a result record, not a witness.
 ## Exact contract
 
 - Exactly two distinct local source tables, in declared order. Each has 1–3
-  lowercase simple-identifier columns of finite `INTEGER`, `DATE`, or restricted
-  `STRING` type,
+  lowercase simple-identifier columns of finite `INTEGER`, `DATE`, restricted
+  `STRING`, or restricted `TIMESTAMP` type,
   at most three **effective** values per column including an admitted NULL,
   and 0–2 rows per world. Bags preserve duplicates. Optional per-table
   `PRIMARY KEY` and nullable `UNIQUE` constraints follow the existing schema
@@ -82,6 +83,16 @@ and creates only a result record, not a witness.
   coercion, `TRY_CAST`, STRING casts and non-identity casts remain unsupported.
   `COUNT(expression)` and
   `COUNT(DISTINCT expression)` admit STRING-valued expressions and ignore NULL;
+  they also admit direct TIMESTAMP columns. `DATE_TRUNC('day'|'month',
+  alias.timestamp_column)` may be projected and grouped; it returns a
+  TIMESTAMP at midnight on the corresponding UTC-naive calendar boundary.
+  A TIMESTAMP domain must use exact `YYYY-MM-DDTHH:MM:SS` strings without
+  an offset, fractional second or leap-second value. Values are interpreted
+  as UTC-naive timestamps, not converted from a local timezone. Comparisons
+  between TIMESTAMP columns of the same type are supported in `WHERE`;
+  TIMESTAMP literals and implicit DATE/TIMESTAMP conversions are not.
+  This can represent finite day/month reporting periods with `COUNT DISTINCT`,
+  but not rolling windows or timezone-aware reporting.
   `SUM`/extrema require INTEGER-valued expressions.
   SQL grouping treats each NULL group-key component as one group; empty grouped output is
   an empty bag. Scalar `COUNT` of empty join output is 0, while `SUM`/extrema
@@ -134,8 +145,9 @@ establishes that raw data were deleted in any external workflow.
 
 Unsupported forms fail closed: implicit/comma/cross/semi/anti joins,
 multiple joins or retained views, non-equality `ON`, more than two join keys,
-unsupported string expressions,
-more than two grouping columns, `HAVING`, windows, `ORDER BY`, scalar or
+unsupported string expressions, timezone conversions and DATE/TIMESTAMP casts,
+more than two grouping columns, `HAVING`, windows (including `ROW_NUMBER`,
+`RANK`, `DENSE_RANK` and windowed aggregates), `ORDER BY`, scalar or
 correlated subqueries, filtering/aggregate CTEs, recursive CTEs,
 multi-stage aggregation, arbitrary SQL dialects, writes, UDFs, production database access and
 dbt model graphs. The existing one-table NoUndo, Doppelgänger and Proof2Test

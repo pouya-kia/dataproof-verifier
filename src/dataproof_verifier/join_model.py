@@ -53,7 +53,7 @@ class JoinScalar:
 @dataclass(frozen=True)
 class JoinProjection:
     name: str
-    ref: Ref | None
+    ref: Ref | JoinScalar | None
     aggregate: JoinAggregate | None
 
 
@@ -67,7 +67,7 @@ class JoinPredicate:
 class JoinQuery:
     join_kind: str
     on: tuple[tuple[Ref, Ref], ...]
-    group_by: tuple[Ref, ...]
+    group_by: tuple[Ref | JoinScalar, ...]
     where: JoinPredicate | None
     projections: tuple[JoinProjection, ...]
 
@@ -116,6 +116,7 @@ def parse_join_spec(raw: Any, source: Path | None = None) -> JoinSpec:
                 "max_rows": max_rows,
             },
             allow_string=True,
+            allow_timestamp=True,
         )
         _simple(table.table, "table name")
         if len(table.columns) > 3:
@@ -213,6 +214,18 @@ def _scalar(node: exp.Expression, spec: JoinSpec, aliases: tuple[str, str]) -> J
     if isinstance(node, exp.Column):
         ref = _ref(node, spec, aliases)
         return JoinScalar("ref", spec.tables[ref.table].column(ref.column).type, (ref,))
+    if isinstance(node, exp.TimestampTrunc):
+        if any(value for key, value in node.args.items() if key not in {"this", "unit"}):
+            raise UnsupportedError("unsupported DATE_TRUNC option")
+        if not isinstance(node.this, exp.Column):
+            raise UnsupportedError("DATE_TRUNC requires a direct TIMESTAMP column")
+        ref = _ref(node.this, spec, aliases)
+        if spec.tables[ref.table].column(ref.column).type != "TIMESTAMP":
+            raise UnsupportedError("DATE_TRUNC requires TIMESTAMP")
+        unit = node.args.get("unit")
+        if not isinstance(unit, exp.Var) or unit.this not in {"DAY", "MONTH"}:
+            raise UnsupportedError("DATE_TRUNC supports DAY and MONTH only")
+        return JoinScalar("timestamp_trunc", "TIMESTAMP", (unit.this, ref))
     if isinstance(node, exp.Null):
         return JoinScalar("null", "NULL", ())
     if isinstance(node, (exp.Literal, exp.Neg)):
@@ -395,6 +408,7 @@ def _predicate(node: exp.Expression, spec: JoinSpec, aliases: tuple[str, str]) -
                 and (
                     (typ == "INTEGER" and type(item) is not int)
                     or (typ == "DATE")
+                    or (typ == "TIMESTAMP")
                     or (typ == "STRING" and type(item) is not str)
                 )
                 for item in (left, right)
@@ -617,13 +631,22 @@ def parse_join_query(sql: str, spec: JoinSpec, *, metric: bool) -> JoinQuery:
     if len(set(keys)) != len(keys):
         raise UnsupportedError("JOIN key equalities must be distinct")
     group = node.args.get("group")
-    group_refs: tuple[Ref, ...] = ()
+    group_refs: tuple[Ref | JoinScalar, ...] = ()
     if group is not None:
         if not isinstance(group, exp.Group) or not 1 <= len(group.expressions) <= 2:
             raise UnsupportedError("one or two direct GROUP BY columns required")
         if any(value for key, value in group.args.items() if key != "expressions"):
             raise UnsupportedError("unsupported GROUP BY option")
-        group_refs = tuple(_ref(item, spec, aliases) for item in group.expressions)
+        group_refs = tuple(
+            _ref(item, spec, aliases)
+            if isinstance(item, exp.Column)
+            else _scalar(item, spec, aliases)
+            for item in group.expressions
+        )
+        if any(
+            isinstance(item, JoinScalar) and item.kind != "timestamp_trunc" for item in group_refs
+        ):
+            raise UnsupportedError("GROUP BY admits only direct columns or DATE_TRUNC")
         if len(set(group_refs)) != len(group_refs):
             raise UnsupportedError("GROUP BY columns must be distinct")
     if metric and group_refs:
@@ -638,12 +661,20 @@ def parse_join_query(sql: str, spec: JoinSpec, *, metric: bool) -> JoinQuery:
     for expression in node.expressions:
         actual = expression.this if isinstance(expression, exp.Alias) else expression
         alias = expression.alias if isinstance(expression, exp.Alias) else None
-        if isinstance(actual, exp.Column):
-            ref = _ref(actual, spec, aliases)
+        if isinstance(actual, (exp.Column, exp.TimestampTrunc)):
+            ref: Ref | JoinScalar = (
+                _ref(actual, spec, aliases)
+                if isinstance(actual, exp.Column)
+                else _scalar(actual, spec, aliases)
+            )
             if ref not in group_refs:
                 raise UnsupportedError("nonaggregate projection must be the grouping column")
             projections.append(
-                JoinProjection(_simple(alias or ref.column, "projection"), ref, None)
+                JoinProjection(
+                    _simple(alias or (ref.column if isinstance(ref, Ref) else ""), "projection"),
+                    ref,
+                    None,
+                )
             )
         else:
             if not alias:
