@@ -22,6 +22,7 @@ from dataproof_verifier.join_model import (
 )
 from dataproof_verifier.join_reference import check_pair_duckdb
 from dataproof_verifier.models import serial_value
+from dataproof_verifier.relational_core import PLAN_VERSION
 
 
 def _canonical(value: Any) -> bytes:
@@ -136,6 +137,8 @@ def validate_serialized(path: Path, *, require_ownership: bool = True) -> tuple[
             return False, "wrong witness module or status"
         if witness.get("result") != result or result.get("status") != "COUNTEREXAMPLE_FOUND":
             return False, "result/witness mismatch"
+        if result.get("plan_version") not in {None, PLAN_VERSION}:
+            return False, "unsupported relational plan version"
         if witness.get("input_sha256") != result.get("input_sha256"):
             return False, "input digest mismatch"
         raw_spec = witness.get("spec")

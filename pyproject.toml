@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dataproof-verifier"
-version = "0.1.0a3"
+version = "0.1.0a4.dev0"
 description = "Bounded replayable checks for SQL view determinacy and test blind spots"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
