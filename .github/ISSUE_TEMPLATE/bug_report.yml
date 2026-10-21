@@ -1,0 +1,82 @@
+name: Bug Report
+description: Report a reproducible problem in a supported or unsupported DataProof workflow.
+title: '[Bug]: '
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Public issues are visible to everyone. Do not post credentials, API tokens, personal data,
+        production customer rows, confidential SQL, proprietary schemas without permission,
+        internal infrastructure identifiers, private paths, or security exploit details.
+        Use a minimal synthetic or authorized redacted reproduction. Report vulnerabilities
+        privately through the repository's Security tab instead.
+  - type: input
+    id: dataproof-version
+    attributes:
+      label: DataProof version
+      placeholder: e.g. 0.1.0a1
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      placeholder: e.g. 3.12.15
+  - type: input
+    id: platform
+    attributes:
+      label: Operating system and architecture
+      placeholder: e.g. Ubuntu x86_64 or macOS arm64
+  - type: dropdown
+    id: module
+    attributes:
+      label: Affected module
+      options:
+        - NoUndo
+        - Doppelgänger
+        - Proof2Test
+        - Preflight
+        - Replay
+        - Explanation
+        - Other
+  - type: textarea
+    id: command
+    attributes:
+      label: Exact CLI command
+      description: Redact private paths and identifiers.
+      render: bash
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: input
+    id: status
+    attributes:
+      label: Exit code, result status, and reason
+      description: Leave unknown if the command did not produce them.
+  - type: textarea
+    id: minimal-spec
+    attributes:
+      label: Minimal synthetic or authorized SQL/specification
+      description: Optional; do not attach confidential data. A missing witness need not be supplied.
+  - type: textarea
+    id: replay
+    attributes:
+      label: Replay result, if applicable
+      description: State not applicable or unknown when no witness exists.
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+  - type: dropdown
+    id: eligibility
+    attributes:
+      label: Does the original task fit the documented SQL fragment?
+      options:
+        - Yes
+        - No
+        - Unknown or incomplete

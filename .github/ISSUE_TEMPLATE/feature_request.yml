@@ -1,0 +1,44 @@
+name: Feature Request
+description: Propose a bounded, testable improvement grounded in a Data Engineering task.
+title: '[Feature]: '
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Public issues are visible to everyone. Do not post credentials, API tokens, personal data,
+        production customer rows, confidential SQL, proprietary schemas without permission,
+        internal infrastructure identifiers, private paths, or security exploit details.
+        Use synthetic or authorized redacted examples; report vulnerabilities privately via Security.
+        Unsupported original workloads are welcome and need not be rewritten to fit today's grammar.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: Describe the limitation before proposing a solution.
+    validations:
+      required: true
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Concrete Data Engineering use case
+      description: What task would this enable? Unknown details may remain open.
+  - type: textarea
+    id: current-gap
+    attributes:
+      label: Why current functionality is insufficient
+      description: Include an unsupported SQL construct or workflow boundary if relevant.
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Existing workaround or simpler tool
+      description: An ordinary SQL/dbt test may already suffice; say so if it does.
+  - type: textarea
+    id: benefit
+    attributes:
+      label: Expected developer benefit
+      description: A narrow, verifiable outcome is more helpful than a list of syntax to add.
+  - type: textarea
+    id: example
+    attributes:
+      label: Publicly shareable example, if available
+      description: Optional synthetic or authorized redacted material only.

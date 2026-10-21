@@ -1,0 +1,85 @@
+name: Original SQL Problem / Unsupported Query
+description: Share an independently motivated Data Engineering task, including unsupported or incomplete ones.
+title: '[Original SQL]: '
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not rewrite your original SQL merely to fit DataProof. Unsupported examples are valuable feedback.
+        Unknown or incomplete details are acceptable; do not invent an invariant or expected output.
+        Public issues are visible to everyone. Do not post credentials, API tokens, personal data,
+        production customer rows, confidential company SQL, proprietary schemas without permission,
+        internal infrastructure identifiers, private paths, or security exploit details.
+        Use synthetic or authorized redacted material. Report vulnerabilities privately via Security.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Original engineering problem
+      description: Describe the task as encountered, without simplifying it for DataProof.
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation and affected engineering decision
+      description: Optional; state unknown if no decision is yet identified.
+  - type: input
+    id: dialect
+    attributes:
+      label: SQL dialect or platform
+      placeholder: e.g. DuckDB, PostgreSQL, BigQuery, dbt; unknown is acceptable
+  - type: textarea
+    id: sql
+    attributes:
+      label: Original SQL or authorized redacted representation
+      description: Omit confidential text when permission is unavailable.
+      render: sql
+  - type: textarea
+    id: schema
+    attributes:
+      label: Relevant schema and table relationships
+      description: Include only shareable details; unknown is acceptable.
+  - type: textarea
+    id: assertions
+    attributes:
+      label: Existing tests or assertions
+      description: Leave blank if none are known.
+  - type: textarea
+    id: kpi-invariant
+    attributes:
+      label: Required KPI or independently justified invariant
+      description: Optional; do not invent one to satisfy this form.
+  - type: dropdown
+    id: unsupported-constructs
+    attributes:
+      label: Constructs in the original task
+      description: Select any that apply, or Unknown.
+      multiple: true
+      options:
+        - Joins
+        - Windows or rolling aggregates
+        - Timestamps or date-time operations
+        - Incremental updates or mutable data
+        - Other unsupported constructs
+        - None of these
+        - Unknown
+  - type: textarea
+    id: preflight
+    attributes:
+      label: Preflight result, if available
+      description: Include status/reason; not required for unsupported or incomplete tasks.
+  - type: textarea
+    id: missing-support
+    attributes:
+      label: Exact missing support or blocking semantics
+      description: Unknown is acceptable.
+  - type: textarea
+    id: simpler-workaround
+    attributes:
+      label: Would an ordinary SQL or dbt test already solve this?
+      description: Include an existing workaround if known.
+  - type: textarea
+    id: useful-result
+    attributes:
+      label: What would a useful DataProof result provide?
+      description: A witness, explanation, regression fixture, or another decision aid; unknown is acceptable.
