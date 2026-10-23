@@ -257,6 +257,8 @@ def main() -> None:
         "explain", help="read-only DuckDB-validated explanation of a positive witness"
     )
     explain_parser.add_argument("witness", type=Path)
+    demo_parser = sub.add_parser("demo", help="run the offline synthetic information-loss demo")
+    demo_parser.add_argument("--output-dir", type=Path)
     doppel_parser = sub.add_parser("doppelganger", help="find a declared test blind spot")
     doppel_sub = doppel_parser.add_subparsers(dest="doppel_command", required=True)
     doppel_check = doppel_sub.add_parser("check", help="search one legal synthetic dataset")
@@ -294,6 +296,10 @@ def main() -> None:
         code = preflight.check(args.workflow, args.spec, args.json)
     elif args.command == "explain":
         code = explain(args.witness)
+    elif args.command == "demo":
+        from dataproof_verifier import demo
+
+        code = demo.run(args.output_dir)
     elif args.command == "doppelganger":
         if args.doppel_command == "check":
             code = doppel_cli.check(args.spec, args.output, args.json)
