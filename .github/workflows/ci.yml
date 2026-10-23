@@ -85,6 +85,14 @@ jobs:
           python -m pip install --no-deps --force-reinstall dist/*.whl
           python -c "import dataproof_verifier, tomllib; from importlib.metadata import version; expected=tomllib.load(open('pyproject.toml','rb'))['project']['version']; assert version('dataproof-verifier') == dataproof_verifier.__version__ == expected"
           dataproof-verifier --help
+      - name: Installed Wheel first-run demo
+        run: |
+          demo_tmp="$(mktemp -d "$RUNNER_TEMP/dataproof-demo.XXXXXX")"
+          dataproof-verifier demo --output-dir "$demo_tmp/evidence"
+          test -f "$demo_tmp/evidence/loss/witness.json"
+          test -f "$demo_tmp/evidence/loss/replay.sql"
+          test -f "$demo_tmp/evidence/repair/result.json"
+          test ! -e "$demo_tmp/evidence/repair/witness.json"
       - name: Installed Wheel bounded JOIN replay
         run: |
           join_tmp="$(mktemp -d "$RUNNER_TEMP/dataproof-join.XXXXXX")"

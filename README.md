@@ -1,6 +1,6 @@
 # DataProof — experimental Alpha (`0.1.0a4.dev0` development source)
 
-DataProof is an offline, bounded SQL reasoning CLI. It works on small synthetic tables, not production databases. Its three workflows are distinct:
+DataProof searches for small, legal SQL counterexamples and produces independently replayable evidence under explicit finite assumptions. It works offline on synthetic tables, not production databases. Its three workflows are distinct:
 
 Alpha v0.1.0a1 is publicly available from the [GitHub prerelease](https://github.com/pouya-kia/dataproof-verifier/releases/tag/v0.1.0a1). Distribution: `dataproof-verifier`; import: `dataproof_verifier`; CLI: `dataproof-verifier`. It is **not published on PyPI**; install from this repository or the release Wheel. The unrelated PyPI `dataproof` project is not a dependency.
 
@@ -26,11 +26,21 @@ git clone https://github.com/pouya-kia/dataproof-verifier.git
 cd dataproof-verifier
 python3.11 -m venv .venv
 .venv/bin/python -m pip install .
+.venv/bin/dataproof-verifier demo
 .venv/bin/dataproof-verifier preflight no-undo examples/no_undo/daily_distinct.json
 .venv/bin/dataproof-verifier check examples/no_undo/daily_distinct.json --output artifacts/no-undo
 .venv/bin/dataproof-verifier replay artifacts/no-undo/witness.json
 .venv/bin/dataproof-verifier explain artifacts/no-undo/witness.json
 ```
+
+The installed `demo` command needs no repository-relative files: it checks a
+synthetic exchange-volume retention problem, prints a validated witness,
+executes the generated replay SQL in a separate DuckDB connection, checks a
+bounded repair, and independently enumerates all 16 declared legal worlds.
+Use `dataproof-verifier demo --output-dir NEW_DIRECTORY` to retain artifacts;
+the command refuses to overwrite an existing path. See the
+[first-run guide](docs/first-five-minutes.md). Installing packages may take
+longer than a few minutes; no installation-time promise is made.
 
 The NoUndo example has equal daily order-count, revenue, and distinct-customer summaries, but monthly distinct-customer KPIs of 1 and 2. The generated `replay.sql` ends with `REPLAY_OK` when run in DuckDB. Two bounded-negative controls are `examples/no_undo/constrained_customer.json` and `examples/no_undo/daily_sum.json`; each returns exit code 3, **not** a universal preservation proof.
 
