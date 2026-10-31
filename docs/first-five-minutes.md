@@ -1,6 +1,6 @@
 # First run: a finite, offline SQL counterexample
 
-Install the current development source with Python 3.11 or 3.12:
+Install the v0.1.0a4 source with Python 3.11 or 3.12:
 
 ```sh
 git clone https://github.com/pouya-kia/dataproof-verifier.git

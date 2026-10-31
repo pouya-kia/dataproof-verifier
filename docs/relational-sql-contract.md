@@ -1,7 +1,7 @@
-# Relational SQL contract — `0.1.0a4.dev0` source
+# Relational SQL contract — `0.1.0a4` release
 
-This is a **finite development-source contract**, not the grammar of the
-published `v0.1.0a1` Wheel. Use `dataproof-verifier join preflight SPEC` before
+This is a **finite Alpha-release contract**, not the grammar of the
+earlier `v0.1.0a1` Wheel. Use `dataproof-verifier join preflight SPEC` before
 search. The full [joined syntax and limits](bounded-join.md) remain normative;
 this page makes workflow and backend boundaries explicit.
 
