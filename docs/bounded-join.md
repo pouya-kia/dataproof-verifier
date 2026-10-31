@@ -1,4 +1,4 @@
-# Bounded two-table join check (unreleased Alpha candidate)
+# Bounded two-table join check (Alpha v0.1.0a4)
 
 This is a separate NoUndo workflow for one narrow Data Engineering question:
 can two legal tiny databases produce the **same retained grouped aggregate
@@ -6,10 +6,10 @@ bag** over a restricted equijoin but different values for a scalar downstream KP
 motivated by repeated join-cardinality/fanout blockers in the
 [DataProof-100 evaluation](evaluation/dataproof-100-evaluation.md). It does
 **not** run the original multi-model dbt or BI tasks in that intake. The
-published `v0.1.0a1` Wheel does **not** contain this command. The current
-source is an untagged `0.1.0a4.dev0` development candidate, not a published release.
+earlier `v0.1.0a1` Wheel does **not** contain this command. It is included
+in the experimental `v0.1.0a4` GitHub prerelease, which is not on PyPI.
 
-## Use from this development source
+## Use from this release source
 
 After an editable installation in a disposable environment:
 
@@ -102,7 +102,7 @@ and creates only a result record, not a witness.
   rules. A `WHERE` condition is applied **after** null-extension; `ON` accepts
   only the one or two direct equalities, not arbitrary predicates or a rewritten
   `WHERE`. Output-column order matters; output-row order does not.
-- The development `0.1.0a4.dev0` joined path additionally admits **one**
+- The `0.1.0a4` joined path additionally admits **one**
   nonrecursive, once-referenced grouped aggregate CTE or derived SELECT.
   Its inner query is an otherwise admitted two-table joined grouped query,
   including optional admitted `WHERE`, with named direct grouping projections

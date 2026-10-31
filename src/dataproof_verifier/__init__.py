@@ -1,3 +1,3 @@
 """DataProof: bounded, independently replayed NoUndo witnesses."""
 
-__version__ = "0.1.0a4.dev0"
+__version__ = "0.1.0a4"
